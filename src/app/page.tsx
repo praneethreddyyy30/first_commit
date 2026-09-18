@@ -168,7 +168,7 @@ export default function Home() {
   }, [schemes, targetSchemeId]);
 
   return (
-    <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAF7F2] text-slate-800 flex flex-col font-sans">
       {/* Official Gov Header */}
       <Header
         activeProfileName={profile.name}
@@ -179,132 +179,55 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-        {/* 3-Step Guided Journey & Utility Bar */}
-        <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          {/* Primary 3-Step Stepper */}
-          <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xs scrollbar-none">
-            {/* Step 1: Profile */}
+        {/* Regal Navy Navigation Ribbon (Strict 3-Stage Workflow - Hand-drawn Spec) */}
+        <div className="mb-6 overflow-x-auto no-scrollbar">
+          <div className="flex w-max min-w-full space-x-1.5 rounded-2xl bg-[#0B1B4F] p-1.5 shadow-luxury border border-[#142A6F]">
+            {/* Step 1: Citizen Master Profile */}
             <button
               onClick={() => setActiveTab("profile")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "profile"
-                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
-              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
-                activeTab === "profile" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
-              }`}>
-                1
-              </span>
-              <span>Your Profile</span>
-              <span
-                className={`hidden sm:inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                  activeTab === "profile"
-                    ? "bg-white/25 text-white"
-                    : "bg-slate-100 text-slate-700"
-                }`}
-              >
+              <User className="size-4" />
+              <span>1. Your Profile</span>
+              <span className="rounded-full bg-[#152864] text-slate-300 border border-slate-600 px-2 py-0.5 text-[10px] font-bold">
                 {profile.state.split(" ")[0]}
               </span>
             </button>
 
-            <ChevronRight className="size-4 text-slate-300 shrink-0" />
-
-            {/* Step 2: Matched Schemes */}
+            {/* Step 2: Schemes & Certificates */}
             <button
               onClick={() => setActiveTab("schemes")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "schemes"
-                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
-              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
-                activeTab === "schemes" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
-              }`}>
-                2
-              </span>
-              <span>Matched Schemes</span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
-                  activeTab === "schemes"
-                    ? "bg-emerald-400 text-slate-950"
-                    : "bg-emerald-100 text-emerald-800"
-                }`}
-              >
+              <ShieldCheck className="size-4" />
+              <span>2. Schemes & Certificates</span>
+              <span className="rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-bold">
                 {eligibleCount} Qualified
               </span>
             </button>
 
-            <ChevronRight className="size-4 text-slate-300 shrink-0" />
-
-            {/* Step 3: Dedicated Scheme Workspace (User Hand-drawn Workflow) */}
+            {/* Step 3: Dedicated Scheme Workspace */}
             <button
               onClick={() => setActiveTab("workspace")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                 activeTab === "workspace"
-                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
-              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
-                activeTab === "workspace" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
-              }`}>
-                3
+              <FileCheck2 className="size-4" />
+              <span>3. Scheme Workspace ({activeScheme.shortCode})</span>
+              <span className="rounded-full bg-[#DFB738]/20 text-[#F5E29F] border border-[#DFB738]/40 px-2 py-0.5 text-[10px] font-bold">
+                Dedicated Cockpit
               </span>
-              <span>Scheme Workspace</span>
-              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                activeTab === "workspace" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-900 border border-amber-300"
-              }`}>
-                {activeScheme.shortCode}
-              </span>
-            </button>
-          </div>
-
-          {/* Secondary Tools & Utilities (Direct Shortcuts into Scheme Workspace) */}
-          <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xs scrollbar-none">
-            {/* Tool 1: Roadmap */}
-            <button
-              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "roadmap")}
-              title="Official Government Steps & Application Roadmap for active scheme"
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-            >
-              <GitFork className="size-3.5" />
-              <span>Roadmap</span>
-            </button>
-
-            {/* Tool 2: Seva Centers */}
-            <button
-              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "offline")}
-              title="Nearby Citizen Service Centers and Statutory Fee Schedules"
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-            >
-              <Building className="size-3.5" />
-              <span>Seva Centers</span>
-            </button>
-
-            {/* Tool 3: Bedrock AI Copilot */}
-            <button
-              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "copilot")}
-              title="Ask AI Civic Copilot about any scheme rule or criteria"
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-            >
-              <Bot className="size-3.5 text-indigo-600" />
-              <span>AI Copilot</span>
-              <span className="flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
-                <Sparkles className="size-2" /> Voice
-              </span>
-            </button>
-
-            {/* Tool 4: Dossier */}
-            <button
-              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "dossier")}
-              title="Download consolidated PDF dossier for this citizen"
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
-            >
-              <FileBadge className="size-3.5" />
-              <span>Dossier</span>
             </button>
           </div>
         </div>
@@ -348,7 +271,7 @@ export default function Home() {
               onNavigateToProfile={() => setActiveTab("profile")}
               onNavigateToDocuments={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
               onNavigateToRoadmap={(schemeId) => handleOpenSchemeWorkspace(schemeId, "roadmap")}
-              onSelectScheme={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
+              onSelectSchemeForWorkspace={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
               totalSchemesCount={schemes.length}
               lastSyncedAt={lastSyncedAt}
               onSyncWithApiSetu={handleSyncWithApiSetu}
@@ -375,10 +298,10 @@ export default function Home() {
       </main>
 
       {/* Official Portal Footer */}
-      <footer className="mt-12 border-t border-slate-200 bg-white py-6 text-xs text-slate-500">
+      <footer className="mt-12 border-t border-[#EAE2D5] bg-[#FDFBF7] py-6 text-xs text-slate-600">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-800">JanSetu AI</span>
+            <span className="font-bold text-[#0B1B4F] font-serif">JanSetu AI</span>
             <span>•</span>
             <span>National Citizen Service Flight Deck • WeMakeDevs × AWS Hackathon 2026</span>
           </div>
@@ -386,7 +309,7 @@ export default function Home() {
           <div className="flex flex-wrap items-center gap-4">
             <button
               onClick={() => setIsArchitectureOpen(true)}
-              className="text-indigo-600 hover:underline cursor-pointer font-medium"
+              className="text-[#854D0E] hover:underline cursor-pointer font-bold"
             >
               Inspect AWS Stack
             </button>

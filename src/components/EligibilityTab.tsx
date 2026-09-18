@@ -47,7 +47,7 @@ interface EligibilityTabProps {
   onNavigateToProfile?: () => void;
   onNavigateToDocuments?: (schemeId: string) => void;
   onNavigateToRoadmap?: (schemeId: string) => void;
-  onSelectScheme?: (schemeId: string) => void;
+  onSelectSchemeForWorkspace?: (schemeId: string) => void;
   totalSchemesCount?: number;
   lastSyncedAt?: string;
   onSyncWithApiSetu?: () => Promise<void>;
@@ -61,7 +61,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
   onNavigateToProfile,
   onNavigateToDocuments,
   onNavigateToRoadmap,
-  onSelectScheme,
+  onSelectSchemeForWorkspace,
   totalSchemesCount,
   lastSyncedAt = "Live (API Setu Gateway)",
   onSyncWithApiSetu,
@@ -129,30 +129,23 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
   };
 
   const handleMarkCertAsHeld = (certId: string) => {
-    const currentHeld = profile.heldDocuments || [];
-    if (!currentHeld.includes(certId)) {
-      onProfileChange({
-        ...profile,
-        heldDocuments: [...currentHeld, certId],
-      });
+    const current = profile.heldDocuments || [];
+    if (!current.includes(certId)) {
+      onProfileChange({ ...profile, heldDocuments: [...current, certId] });
     }
-    setSelectedCertGuideId(null);
   };
 
   return (
     <div className="space-y-6">
-      {/* Top Citizen Profile Celebration Banner (Step 2 Header) */}
-      <div className="rounded-3xl border border-indigo-200 bg-linear-to-r from-indigo-600 via-indigo-700 to-violet-700 p-6 text-white shadow-md shadow-indigo-100">
+      {/* Top Citizen Profile Summary Banner */}
+      <div className="rounded-3xl border border-[#142A6F] bg-gradient-to-r from-[#0B1B4F] via-[#0C1B4A] to-[#040B22] p-6 text-white shadow-luxury">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-emerald-400 text-slate-950 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider shadow-xs">
-                🎉 {eligibleResults.length} Schemes Matched
+              <span className="rounded-md bg-[#DFB738]/20 text-[#F5E29F] border border-[#DFB738]/40 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider font-display">
+                {profile.state} Citizen Profile
               </span>
-              <span className="rounded-full bg-white/20 text-white px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-xs">
-                {profile.state} Citizen
-              </span>
-              <span className="rounded-full bg-white/20 text-white px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-xs">
+              <span className="rounded-md bg-white/10 text-slate-200 border border-white/15 px-2 py-0.5 text-[10px] font-bold font-mono">
                 {isTamilNadu && profile.tnCommunity !== "None"
                   ? `${profile.category} (${profile.tnCommunity})`
                   : isAndhraPradesh && profile.apCommunity !== "None"
@@ -160,23 +153,23 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   : profile.category}
               </span>
               {profile.studiedInGovtSchool6To12 && (
-                <span className="rounded-full bg-sky-400/25 text-sky-200 border border-sky-300/40 px-2 py-0.5 text-[10px] font-bold">
+                <span className="rounded-md bg-blue-500/20 text-blue-200 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold">
                   Govt School 6-12
                 </span>
               )}
               {profile.isFirstGraduateInFamily && (
-                <span className="rounded-full bg-amber-400/25 text-amber-200 border border-amber-300/40 px-2 py-0.5 text-[10px] font-bold">
+                <span className="rounded-md bg-amber-500/20 text-amber-200 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
                   1st Graduate
                 </span>
               )}
             </div>
 
-            <h2 className="text-xl font-black text-white sm:text-2xl tracking-tight">
-              {profile.name || "Client"} • Qualified Welfare & Scholarship Schemes
+            <h2 className="text-xl font-black text-white sm:text-2xl font-serif tracking-tight">
+              {profile.name || "Client"} • Scheme Eligibility Discovery
             </h2>
 
-            <p className="text-xs text-indigo-100 flex flex-wrap items-center gap-2">
-              <span>Annual Income: <strong className="text-white">₹{profile.annualFamilyIncome.toLocaleString("en-IN")}</strong></span>
+            <p className="text-xs text-slate-300 flex flex-wrap items-center gap-2">
+              <span>Annual Income: <strong className="text-[#F5E29F]">₹{profile.annualFamilyIncome.toLocaleString("en-IN")}</strong></span>
               <span>•</span>
               <span>Education: <strong className="text-white">{profile.educationLevel}</strong> ({profile.admissionQuota})</span>
               <span>•</span>
@@ -186,24 +179,14 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {onNavigateToDocuments && eligibleResults.length > 0 && (
-              <button
-                onClick={() => onNavigateToDocuments(eligibleResults[0].scheme.id)}
-                className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black text-indigo-700 shadow-md hover:bg-indigo-50 transition-all cursor-pointer hover:scale-[1.02]"
-              >
-                <FileCheck2 className="size-4 text-indigo-600" />
-                <span>Verify Documents (Step 3) ➔</span>
-              </button>
-            )}
-
+          <div className="flex items-center gap-3">
             {onNavigateToProfile && (
               <button
                 onClick={onNavigateToProfile}
-                className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white/10 px-3.5 py-3 text-xs font-bold text-white hover:bg-white/20 transition-all cursor-pointer backdrop-blur-xs"
+                className="flex items-center gap-1.5 rounded-xl border border-[#DFB738]/40 bg-[#152864] text-[#F5E29F] px-4 py-2.5 text-xs font-bold hover:bg-[#152864]/80 transition-all cursor-pointer shadow-sm"
               >
-                <User className="size-3.5" />
-                <span>Edit Profile</span>
+                <User className="size-3.5 text-[#F5E29F]" />
+                <span>Edit Profile Particulars</span>
               </button>
             )}
           </div>
@@ -248,15 +231,15 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
       </div>
 
       {/* Classification & Search Controls */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-4">
+      <div className="rounded-2xl border border-[#EDE6DD] bg-white p-4 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Classification Tabs: Eligible vs Not Eligible */}
-          <div className="flex rounded-xl bg-slate-100 p-1">
+          <div className="flex rounded-xl bg-[#FAF7F2] p-1 border border-[#EDE6DD]">
             <button
               onClick={() => setEligibilityTab("ELIGIBLE")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 eligibilityTab === "ELIGIBLE"
-                  ? "bg-emerald-600 text-white shadow-xs"
+                  ? "bg-emerald-700 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -277,7 +260,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               onClick={() => setEligibilityTab("NOT_ELIGIBLE")}
               className={`flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-bold transition-all cursor-pointer ${
                 eligibilityTab === "NOT_ELIGIBLE"
-                  ? "bg-rose-600 text-white shadow-xs"
+                  ? "bg-rose-700 text-white shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -302,15 +285,15 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search 35 schemes..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:outline-hidden"
+              placeholder="Search schemes by title, benefit, or code..."
+              className="w-full rounded-xl border border-[#EDE6DD] bg-[#FAF7F2] pl-8 pr-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
             />
           </div>
         </div>
 
         {/* Category Filter Pills */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-slate-100">
-          <span className="text-[11px] font-bold text-slate-500 mr-2">Filter:</span>
+        <div className="flex flex-wrap items-center gap-1.5 pt-2 border-t border-[#EDE6DD]">
+          <span className="text-[11px] font-bold text-[#854D0E] mr-2 font-display">Filter:</span>
           {[
             { id: "ALL", label: `All Programs (${activeClassificationResults.length})` },
             { id: "STATE_SPECIFIC", label: `${profile.state} Flagships` },
@@ -324,8 +307,8 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               onClick={() => setCategoryFilter(filter.id as any)}
               className={`rounded-lg px-3 py-1 text-xs font-semibold transition-all cursor-pointer ${
                 categoryFilter === filter.id
-                  ? "bg-indigo-600 text-white shadow-xs"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+                  ? "bg-[#0B1B4F] text-[#F5E29F] shadow-xs font-bold"
+                  : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
               }`}
             >
               {filter.label}
@@ -344,10 +327,10 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
           return (
             <div
               key={scheme.id}
-              className={`flex flex-col justify-between rounded-3xl border bg-white p-5 transition-all shadow-xs hover:shadow-md ${
+              className={`flex flex-col justify-between rounded-3xl border bg-white p-5 transition-all shadow-luxury hover:border-[#DFC8A5] ${
                 isEligible
-                  ? "border-emerald-200 hover:border-emerald-300"
-                  : "border-slate-200 hover:border-slate-300 opacity-90"
+                  ? "border-emerald-200/80 hover:border-emerald-300"
+                  : "border-[#EDE6DD] opacity-90"
               }`}
             >
               {/* Card Header */}
@@ -358,13 +341,13 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                       <span
                         className={`rounded-md px-2 py-0.5 text-[10px] font-black uppercase ${
                           scheme.level === "State"
-                            ? "bg-purple-100 text-purple-800"
-                            : "bg-blue-100 text-blue-800"
+                            ? "bg-amber-100 text-amber-900 border border-amber-200"
+                            : "bg-blue-100 text-blue-900 border border-blue-200"
                         }`}
                       >
                         {scheme.level === "State" ? `${profile.state} State` : "Central Gov"}
                       </span>
-                      <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                      <span className="rounded-md border border-[#EDE6DD] bg-[#FAF7F2] px-2 py-0.5 text-[10px] font-bold text-slate-700">
                         {scheme.shortCode}
                       </span>
                       {scheme.type === "healthcare" && (
@@ -373,7 +356,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                         </span>
                       )}
                     </div>
-                    <h3 className="text-base font-black tracking-tight text-slate-900">
+                    <h3 className="text-base font-black tracking-tight text-[#0B1B4F] font-serif">
                       {scheme.title}
                     </h3>
                   </div>
@@ -381,8 +364,8 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   <span
                     className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-black uppercase tracking-wider ${
                       isEligible
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-rose-100 text-rose-800"
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "bg-rose-100 text-rose-800 border border-rose-200"
                     }`}
                   >
                     {isEligible ? "Eligible" : "Ineligible"}
@@ -395,11 +378,11 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                 </p>
 
                 {/* Benefit Amount Highlight */}
-                <div className="rounded-2xl border border-indigo-100 bg-linear-to-r from-indigo-50/60 to-slate-50/60 p-3.5">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-950">
+                <div className="rounded-2xl border border-[#EDE6DD] bg-[#FAF7F2] p-3.5">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-[#854D0E] font-display">
                     Statutory Benefit Amount:
                   </div>
-                  <div className="text-base font-black text-indigo-900">
+                  <div className="text-base font-black text-[#0B1B4F] font-serif">
                     {scheme.benefitAmount}
                   </div>
                   <div className="text-[11px] text-slate-600 mt-0.5 line-clamp-2">
@@ -410,18 +393,18 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                 {/* Statutory Deadline & Days Remaining */}
                 <div className="flex items-center justify-between text-xs text-slate-600 pt-1">
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="size-3.5 text-slate-400" />
+                    <Calendar className="size-3.5 text-amber-700" />
                     <span>Closes: <strong>{scheme.deadline}</strong></span>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                  <span className="rounded-full bg-[#FAF4EB] border border-[#E8DCCB] px-2 py-0.5 text-[10px] font-bold text-[#854D0E]">
                     {scheme.daysRemaining} days remaining
                   </span>
                 </div>
 
                 {/* Satisfied Criteria Bullets */}
                 {matchedReasons && matchedReasons.length > 0 && (
-                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1">
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-1 font-display">
                       <CheckCircle2 className="size-3 text-emerald-600" />
                       <span>Why You Are Eligible (Satisfied Statutory Criteria):</span>
                     </div>
@@ -443,8 +426,8 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
 
                 {/* Failed Clauses Bullets */}
                 {!isEligible && failedReasons && failedReasons.length > 0 && (
-                  <div className="rounded-xl border border-rose-100 bg-rose-50/40 p-3 space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1">
+                  <div className="rounded-xl border border-rose-100 bg-rose-50/50 p-3 space-y-1.5">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-rose-900 flex items-center gap-1 font-display">
                       <XCircle className="size-3 text-rose-600" />
                       <span>Why Ineligible (Failed Clauses):</span>
                     </div>
@@ -461,7 +444,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
 
                 {/* Missing Prerequisite Roadblock Alert */}
                 {isEligible && hasRoadblocks && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                         <AlertTriangle className="size-3.5 text-amber-600" />
@@ -473,10 +456,10 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                         <button
                           key={preq.id}
                           onClick={() => setSelectedCertGuideId(preq.id)}
-                          className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded-md border border-amber-300 bg-white px-2 py-0.5 text-[11px] font-semibold text-amber-900 hover:bg-amber-100 cursor-pointer shadow-2xs"
                         >
                           <span>{preq.title ? preq.title.substring(0, 35) : preq.id}</span>
-                          <span className="text-[10px] text-indigo-700 font-bold">Resolve Guide ➔</span>
+                          <span className="text-[10px] text-[#0B1B4F] font-bold">Resolve Guide ➔</span>
                         </button>
                       ))}
                     </div>
@@ -485,28 +468,24 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
-                {/* Primary CTA: Select Scheme & Open Workspace (Matching User Hand-drawn Flow) */}
-                <button
-                  onClick={() => {
-                    if (onSelectScheme) {
-                      onSelectScheme(scheme.id);
-                    } else if (onNavigateToDocuments) {
-                      onNavigateToDocuments(scheme.id);
-                    }
-                  }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0B1B4F] px-4 py-2.5 text-xs font-black text-[#F5E29F] hover:bg-[#152864] transition-all shadow-sm cursor-pointer border border-[#DFB738]/50 hover:scale-[1.01]"
-                >
-                  <span>Select Scheme & Open Workspace ➔</span>
-                </button>
+              <div className="mt-4 pt-3 border-t border-[#EDE6DD] space-y-2">
+                {onSelectSchemeForWorkspace && (
+                  <button
+                    onClick={() => onSelectSchemeForWorkspace(scheme.id)}
+                    className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0B1B4F] hover:bg-[#071233] text-white py-2.5 px-3 text-xs font-bold transition-all cursor-pointer shadow-sm border border-[#142A6F]"
+                  >
+                    <span>Select Scheme & Open Dedicated Workspace</span>
+                    <ArrowRight className="size-3.5 text-[#F5E29F]" />
+                  </button>
+                )}
 
                 <div className="flex items-center gap-2">
                   {onNavigateToDocuments && (
                     <button
                       onClick={() => onNavigateToDocuments(scheme.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#DACBB8] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs"
                     >
-                      <FileCheck2 className="size-3.5 text-indigo-600" />
+                      <FileCheck2 className="size-3.5 text-amber-700" />
                       <span>Audit Docs</span>
                     </button>
                   )}
@@ -514,9 +493,9 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   {onNavigateToRoadmap && (
                     <button
                       onClick={() => onNavigateToRoadmap(scheme.id)}
-                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer shadow-xs"
+                      className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#DACBB8] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs"
                     >
-                      <GitFork className="size-3.5 text-sky-600" />
+                      <GitFork className="size-3.5 text-sky-700" />
                       <span>Roadmap</span>
                     </button>
                   )}
@@ -525,24 +504,24 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                 <div className="flex items-center justify-between pt-1">
                   <button
                     onClick={() => setSelectedCockpitResult(result)}
-                    className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 hover:underline cursor-pointer"
+                    className="flex items-center gap-1 text-xs font-bold text-[#0B1B4F] hover:text-[#854D0E] hover:underline cursor-pointer"
                   >
                     <span>Open Scheme Cockpit & Action Tracker</span>
-                    <ArrowRight className="size-3.5" />
+                    <ArrowRight className="size-3.5 text-[#854D0E]" />
                   </button>
 
                   <button
                     onClick={() => togglePolicyView(scheme.id)}
-                    className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+                    className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0B1B4F] cursor-pointer"
                   >
-                    <Code2 className="size-3" />
+                    <Code2 className="size-3 text-amber-700" />
                     <span>{expandedCedarPolicy === scheme.id ? "Hide Cedar" : "View Cedar"}</span>
                   </button>
                 </div>
 
                 {/* Expandable AWS Cedar Policy Code */}
                 {expandedCedarPolicy === scheme.id && (
-                  <div className="mt-2 rounded-xl bg-slate-950 p-3 font-mono text-[11px] text-emerald-400 border border-slate-800 whitespace-pre-wrap max-h-48 overflow-y-auto">
+                  <div className="mt-2 rounded-xl bg-[#071233] p-3 font-mono text-[11px] text-emerald-400 border border-[#142A6F] whitespace-pre-wrap max-h-48 overflow-y-auto">
                     {scheme.cedarPolicyCode}
                   </div>
                 )}
@@ -553,9 +532,9 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
       </div>
 
       {displayedResults.length === 0 && (
-        <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-xs space-y-3">
+        <div className="rounded-3xl border border-[#EDE6DD] bg-white p-12 text-center shadow-luxury space-y-3">
           <FileText className="size-12 mx-auto text-slate-300" />
-          <h3 className="text-base font-bold text-slate-900">No matching schemes found</h3>
+          <h3 className="text-base font-bold text-[#0B1B4F] font-serif">No matching schemes found</h3>
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             Try resetting your search query or switching the category filter above to see other programs.
           </p>
@@ -564,7 +543,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               setSearchQuery("");
               setCategoryFilter("ALL");
             }}
-            className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 cursor-pointer shadow-xs"
+            className="rounded-xl bg-[#0B1B4F] px-4 py-2 text-xs font-bold text-[#F5E29F] hover:bg-[#071233] cursor-pointer shadow-sm border border-[#142A6F]"
           >
             Clear Filters
           </button>

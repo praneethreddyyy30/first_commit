@@ -251,6 +251,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             userHeldDocuments={profile.heldDocuments || []}
             userState={profile.state}
             onSelectScheme={onSelectScheme}
+            isWorkspaceMode={true}
           />
         )}
 

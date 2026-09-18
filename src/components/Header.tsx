@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, Cpu, Award, User, ChevronDown, PlusCircle, ShieldCheck, Check } from "lucide-react";
+import { Cpu, Award, ChevronDown, PlusCircle, Check } from "lucide-react";
 import { DEMO_PERSONAS, DemoPersona } from "@/data/demoPersonas";
 
 interface HeaderProps {
@@ -79,29 +79,45 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Right Actions: Clean Sample Tester & Status */}
+        {/* Right Section: Badges & Persona Switcher */}
         <div className="flex items-center gap-3">
-          {/* Subtle Sample Profile Tester (Discreetly tucked away) */}
+          <div className="hidden lg:flex items-center gap-2.5 bg-[#FAF4EB] border border-[#E8DCCB] px-3.5 py-1.5 rounded-xl">
+            <span className="text-xl">🇮🇳</span>
+            <div className="text-left">
+              <div className="text-[9px] font-black uppercase text-[#854D0E] tracking-wider font-display">
+                AZADI KA AMRIT MAHOTSAV
+              </div>
+              <div className="text-[10px] text-slate-600 font-medium">
+                100% Deterministic • Zero Hallucination
+              </div>
+            </div>
+          </div>
+
+          {/* Client Selector Dropdown */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-linear-to-r from-indigo-50/70 to-purple-50/50 px-3 py-1.5 text-xs font-semibold text-indigo-900 hover:border-indigo-300 hover:bg-indigo-50 transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-2 rounded-xl border border-[#DACBB8] bg-white hover:bg-[#FAF7F2] px-3 py-1.5 text-xs font-semibold text-[#0B1B4F] transition-all cursor-pointer shadow-2xs"
             >
-              <Sparkles className="size-3.5 text-indigo-600" />
-              <span className="hidden sm:inline">Try Sample:</span>
-              <span className="font-bold text-slate-800 truncate max-w-[130px]">
-                {activeProfileName || "Select Profile"}
-              </span>
-              <ChevronDown className="size-3 text-slate-400" />
+              <div className="flex size-6 items-center justify-center rounded-lg bg-[#0B1B4F] text-[11px] font-black text-[#F5E29F]">
+                {activeProfileName ? activeProfileName.charAt(0) : "U"}
+              </div>
+              <div className="text-left hidden sm:block">
+                <p className="text-[11px] font-bold text-[#0B1B4F] leading-tight">
+                  {activeProfileName || "Select Client Profile"}
+                </p>
+                <p className="text-[9px] text-slate-500 leading-tight font-sans">Active Citizen Master</p>
+              </div>
+              <ChevronDown className="size-3.5 text-slate-500" />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100">
-                <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Quick Testing Profiles (Real Cases):
+              <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-[#DFC8A5] bg-[#FAF7F2] p-2.5 shadow-luxury-lg z-50 space-y-1.5">
+                <div className="px-2 py-1 text-[10px] font-bold text-[#854D0E] uppercase tracking-wider font-display">
+                  Select Citizen Profile (9 Real-World Cases):
                 </div>
 
-                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+                <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
                   {DEMO_PERSONAS.map((p) => {
                     const isSelected = activeProfileName === p.profile.name;
                     return (
@@ -111,35 +127,40 @@ export const Header: React.FC<HeaderProps> = ({
                           onSelectPersona(p);
                           setDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-all cursor-pointer ${
+                        className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-indigo-600 text-white font-bold"
-                            : "text-slate-700 hover:bg-slate-50"
+                            ? "bg-[#0B1B4F] text-white font-bold shadow-2xs"
+                            : "bg-white text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
                         }`}
                       >
                         <div className="truncate pr-2">
-                          <p className={`font-bold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>{p.name}</p>
-                          <p className={`text-[10px] ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
-                            {p.state} • {p.categoryTag}
+                          <p className={`font-bold truncate ${isSelected ? "text-white" : "text-[#0B1B4F]"}`}>
+                            {p.name}
+                          </p>
+                          <p className={`text-[10px] ${isSelected ? "text-[#F5E29F]" : "text-slate-500"}`}>
+                            <span className="font-semibold">
+                              {p.state}
+                            </span>
+                            {" "}• {p.categoryTag}
                           </p>
                         </div>
-                        {isSelected && <Check className="size-3.5 text-white shrink-0" />}
+                        {isSelected && <Check className="size-4 text-[#F5E29F] shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
 
                 {onResetToBlank && (
-                  <div className="border-t border-slate-100 pt-1.5 mt-1">
+                  <div className="border-t border-[#EAE2D5] pt-1.5">
                     <button
                       onClick={() => {
                         onResetToBlank();
                         setDropdownOpen(false);
                       }}
-                      className="w-full flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-[#854D0E] hover:bg-amber-100/60 transition-colors cursor-pointer"
                     >
-                      <PlusCircle className="size-3.5" />
-                      <span>Start with Blank Profile</span>
+                      <PlusCircle className="size-4 text-amber-700" />
+                      <span>+ Register New / Blank Citizen</span>
                     </button>
                   </div>
                 )}

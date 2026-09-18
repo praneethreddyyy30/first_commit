@@ -24,7 +24,8 @@ import {
   MapPin,
   Check,
   HelpCircle,
-  Activity
+  Activity,
+  Printer
 } from "lucide-react";
 import { SCHEMES_DATABASE, SchemeOrService } from "@/data/schemes";
 import {
@@ -39,6 +40,7 @@ interface PrerequisiteRoadmapTabProps {
   userHeldDocuments?: string[];
   userState?: string;
   onSelectScheme?: (schemeId: string) => void;
+  isWorkspaceMode?: boolean;
 }
 
 export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
@@ -46,6 +48,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
   userHeldDocuments = [],
   userState,
   onSelectScheme,
+  isWorkspaceMode = false,
 }) => {
   // Navigation & View Mode
   const [viewMode, setViewMode] = useState<"SINGLE" | "MERGED">("SINGLE");
@@ -159,46 +162,62 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
   const readinessPercent = allSingleDocs.length > 0 ? Math.round((readyCount / allSingleDocs.length) * 100) : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 font-sans">
       {/* Overview Banner & Mode Switcher */}
-      <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-900 via-indigo-950 to-slate-900 p-6 text-white shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+      <div className="luxury-hero-gradient rounded-2xl p-6 sm:p-8 text-white shadow-md border border-[#DFB738]/30 relative overflow-hidden">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 relative z-10">
           <div className="space-y-2 max-w-3xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-200 border border-indigo-500/30">
-              <Sparkles className="size-3.5 text-amber-300" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#152864] px-3.5 py-1 text-xs font-bold text-[#F5E29F] border border-[#DFB738]/40">
+              <Sparkles className="size-3.5 text-[#DFB738]" />
               <span>Dedicated Civic Dependency Engine</span>
             </div>
-            <h3 className="text-xl font-bold tracking-tight">
-              Scheme-Specific Roadmaps & Multi-Scheme Dependency Merger
+            <h3 className="text-2xl sm:text-3xl font-black text-white font-serif tracking-tight">
+              {isWorkspaceMode
+                ? `Roadmap & Verification Gates for ${currentRoadmap.shortCode}`
+                : "Scheme-Specific Roadmaps & Multi-Scheme Dependency Merger"}
             </h3>
-            <p className="text-xs text-indigo-200/90 leading-relaxed">
-              Different government benefits demand completely different proofs and issuing authorities. A medical emergency requires doctor referrals and hospital pre-authorization, while a scholarship mandates caste validity, college enrollment, and NPCI bank seeding. Explore the exact, dedicated roadmap for any scheme below, or merge them into a single-visit action plan.
+            <p className="text-xs sm:text-sm text-slate-200 leading-relaxed">
+              {isWorkspaceMode
+                ? `Follow the exact 4-tier prerequisites, issuing authorities, and statutory timeline milestones for ${currentRoadmap.schemeTitle}.`
+                : "Different government benefits demand completely different proofs and issuing authorities. Explore the exact, dedicated roadmap for any scheme below, or merge them into a single-visit action plan."}
             </p>
           </div>
 
-          {/* Mode Selector Toggle */}
-          <div className="shrink-0 flex items-center gap-1 rounded-xl bg-indigo-950/80 p-1.5 border border-indigo-700/50">
+          {/* Mode Selector Toggle & Print */}
+          <div className="shrink-0 flex flex-wrap items-center gap-2">
+            {!isWorkspaceMode && (
+              <div className="flex items-center gap-1.5 rounded-xl bg-[#071233]/90 p-1.5 border border-[#DFB738]/30 shadow-inner">
+                <button
+                  onClick={() => setViewMode("SINGLE")}
+                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "SINGLE"
+                      ? "bg-[#152864] text-[#F5E29F] ring-1 ring-[#DFB738]/50 shadow-sm"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  <FileText className="size-4" />
+                  <span>Specific Scheme Roadmap</span>
+                </button>
+                <button
+                  onClick={() => setViewMode("MERGED")}
+                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+                    viewMode === "MERGED"
+                      ? "bg-[#152864] text-[#F5E29F] ring-1 ring-[#DFB738]/50 shadow-sm"
+                      : "text-slate-300 hover:text-white"
+                  }`}
+                >
+                  <Layers className="size-4" />
+                  <span>Merge Multiple Schemes</span>
+                </button>
+              </div>
+            )}
+
             <button
-              onClick={() => setViewMode("SINGLE")}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                viewMode === "SINGLE"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-indigo-300 hover:text-white"
-              }`}
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 rounded-xl bg-[#F5E29F] hover:bg-[#FAF0C8] text-[#0B1B4F] px-4 py-2.5 text-xs font-bold transition-all cursor-pointer border border-[#DFB738] shadow-sm"
             >
-              <FileText className="size-4" />
-              <span>Specific Scheme Roadmap</span>
-            </button>
-            <button
-              onClick={() => setViewMode("MERGED")}
-              className={`flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                viewMode === "MERGED"
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "text-indigo-300 hover:text-white"
-              }`}
-            >
-              <Layers className="size-4" />
-              <span>Merge Multiple Schemes</span>
+              <Printer className="size-4 text-[#0B1B4F]" />
+              <span>Print Roadmap</span>
             </button>
           </div>
         </div>
@@ -209,201 +228,203 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
       {/* ========================================================================= */}
       {viewMode === "SINGLE" && (
         <div className="space-y-6">
-          {/* Scheme Selection Bar */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
-              <div>
-                <label className="text-xs font-bold text-slate-800 uppercase tracking-wider block">
-                  Select Specific Target Scheme / Service:
-                </label>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Every scheme displays its own exclusive prerequisites, authorities, and 5-stage verification timeline.
-                </p>
-              </div>
+          {/* Scheme Selection Bar (Only rendered outside dedicated scheme workspace) */}
+          {!isWorkspaceMode && (
+            <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#EDE6DD] pb-3.5">
+                <div>
+                  <label className="text-xs font-bold text-[#0B1B4F] uppercase tracking-wider block font-serif">
+                    Select Specific Target Scheme / Service:
+                  </label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Every scheme displays its own exclusive prerequisites, authorities, and 5-stage verification timeline.
+                  </p>
+                </div>
 
-              {/* Category Pills */}
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  onClick={() => setCategoryFilter("ALL")}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
-                    categoryFilter === "ALL"
-                      ? "bg-slate-900 text-white"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  All ({SCHEMES_DATABASE.length})
-                </button>
-                {userState && (
+                {/* Category Pills */}
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
-                    onClick={() => setCategoryFilter("MY_STATE")}
-                    className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold cursor-pointer transition-colors ${
-                      categoryFilter === "MY_STATE"
-                        ? "bg-purple-700 text-white shadow-xs"
-                        : "bg-purple-50 text-purple-800 hover:bg-purple-100 border border-purple-200"
+                    onClick={() => setCategoryFilter("ALL")}
+                    className={`rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "ALL"
+                        ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                        : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
                     }`}
                   >
-                    <MapPin className="size-3" />
-                    My State ({userState})
+                    All ({SCHEMES_DATABASE.length})
                   </button>
-                )}
-                <button
-                  onClick={() => setCategoryFilter("CENTRAL")}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
-                    categoryFilter === "CENTRAL"
-                      ? "bg-blue-700 text-white"
-                      : "bg-blue-50 text-blue-800 hover:bg-blue-100"
-                  }`}
-                >
-                  <Building2 className="size-3" />
-                  Central Gov
-                </button>
-                <button
-                  onClick={() => setCategoryFilter("HEALTHCARE")}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
-                    categoryFilter === "HEALTHCARE"
-                      ? "bg-emerald-700 text-white"
-                      : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                  }`}
-                >
-                  <Hospital className="size-3" />
-                  Medical Relief
-                </button>
-                <button
-                  onClick={() => setCategoryFilter("SCHOLARSHIP")}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
-                    categoryFilter === "SCHOLARSHIP"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
-                  }`}
-                >
-                  <GraduationCap className="size-3" />
-                  Scholarships
-                </button>
-                <button
-                  onClick={() => setCategoryFilter("CERTIFICATE")}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold cursor-pointer transition-colors ${
-                    categoryFilter === "CERTIFICATE"
-                      ? "bg-indigo-600 text-white"
-                      : "bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
-                  }`}
-                >
-                  <ShieldCheck className="size-3" />
-                  Certificates
-                </button>
-              </div>
-            </div>
-
-            {/* Scheme Dropdown & Quick Badges */}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {availableSchemes.map((s) => {
-                const isSelected = s.id === selectedSchemeId;
-                const isMedical = s.type === "healthcare";
-                const isCert = s.type === "certificate";
-
-                return (
+                  {userState && (
+                    <button
+                      onClick={() => setCategoryFilter("MY_STATE")}
+                      className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-bold cursor-pointer transition-colors ${
+                        categoryFilter === "MY_STATE"
+                          ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                          : "bg-amber-50 text-amber-900 hover:bg-amber-100 border border-amber-200"
+                      }`}
+                    >
+                      <MapPin className="size-3" />
+                      My State ({userState})
+                    </button>
+                  )}
                   <button
-                    key={s.id}
-                    onClick={() => {
-                      setSelectedSchemeId(s.id);
-                      if (onSelectScheme) onSelectScheme(s.id);
-                    }}
-                    className={`text-left p-3.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? "border-indigo-500 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500"
-                        : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-300"
+                    onClick={() => setCategoryFilter("CENTRAL")}
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "CENTRAL"
+                        ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                        : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-1">
-                        <span
-                          className={`font-mono text-[10px] font-bold rounded px-1.5 py-0.5 ${
-                            isMedical
-                              ? "bg-emerald-100 text-emerald-800"
-                              : isCert
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-amber-100 text-amber-800"
-                          }`}
-                        >
-                          {s.shortCode}
-                        </span>
-                        {isSelected && (
-                          <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-600">
-                            <Check className="size-3" /> Active
+                    <Building2 className="size-3" />
+                    Central Gov
+                  </button>
+                  <button
+                    onClick={() => setCategoryFilter("HEALTHCARE")}
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "HEALTHCARE"
+                        ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                        : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
+                    }`}
+                  >
+                    <Hospital className="size-3" />
+                    Medical Relief
+                  </button>
+                  <button
+                    onClick={() => setCategoryFilter("SCHOLARSHIP")}
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "SCHOLARSHIP"
+                        ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                        : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
+                    }`}
+                  >
+                    <GraduationCap className="size-3" />
+                    Scholarships
+                  </button>
+                  <button
+                    onClick={() => setCategoryFilter("CERTIFICATE")}
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "CERTIFICATE"
+                        ? "bg-[#0B1B4F] text-[#F5E29F] font-bold border border-[#DFB738]/40 shadow-xs"
+                        : "bg-[#FAF7F2] text-slate-700 hover:bg-[#F4ECE1] border border-[#EDE6DD]"
+                    }`}
+                  >
+                    <ShieldCheck className="size-3" />
+                    Certificates
+                  </button>
+                </div>
+              </div>
+
+              {/* Scheme Dropdown & Quick Badges */}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {availableSchemes.map((s) => {
+                  const isSelected = s.id === selectedSchemeId;
+                  const isMedical = s.type === "healthcare";
+                  const isCert = s.type === "certificate";
+
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => {
+                        setSelectedSchemeId(s.id);
+                        if (onSelectScheme) onSelectScheme(s.id);
+                      }}
+                      className={`text-left p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? "border-[#DFB738] bg-[#FAF7F2] shadow-sm ring-1 ring-[#DFB738]"
+                          : "border-[#EDE6DD] bg-white hover:bg-[#FAF7F2]/60 hover:border-[#DFC8A5]"
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span
+                            className={`font-mono text-[10px] font-bold rounded px-2 py-0.5 ${
+                              isMedical
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                                : isCert
+                                ? "bg-sky-50 text-sky-800 border border-sky-200"
+                                : "bg-amber-50 text-amber-800 border border-amber-200"
+                            }`}
+                          >
+                            {s.shortCode}
                           </span>
-                        )}
+                          {isSelected && (
+                            <span className="flex items-center gap-1 text-[11px] font-bold text-[#0B1B4F]">
+                              <Check className="size-3 text-[#DFB738]" /> Active
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-xs font-bold text-[#0B1B4F] line-clamp-2 leading-snug font-serif">
+                          {s.title}
+                        </h4>
                       </div>
-                      <h4 className="text-xs font-bold text-slate-900 line-clamp-2 leading-snug">
-                        {s.title}
-                      </h4>
-                    </div>
 
-                    <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex items-center justify-between text-[11px] text-slate-500">
-                      <span>{s.level} • {s.type}</span>
-                      <span className="font-semibold text-slate-700 truncate max-w-[140px]">
-                        {s.benefitAmount.split("+")[0]}
-                      </span>
-                    </div>
-                  </button>
-                );
-              })}
+                      <div className="mt-3 pt-2.5 border-t border-[#EDE6DD] flex items-center justify-between text-[11px] text-slate-500">
+                        <span>{s.level} • {s.type}</span>
+                        <span className="font-semibold text-[#0B1B4F] truncate max-w-[140px]">
+                          {s.benefitAmount.split("+")[0]}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Current Scheme Focus Card */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-6">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-slate-100 pb-5">
-              <div className="space-y-1">
+          <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-[#EDE6DD] pb-5">
+              <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
-                  <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold text-white uppercase">
+                  <span className="rounded bg-[#0B1B4F] px-2.5 py-0.5 font-mono text-[10px] font-bold text-[#F5E29F] uppercase">
                     {currentRoadmap.shortCode}
                   </span>
-                  <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                  <span className="rounded bg-[#FAF7F2] border border-[#DFC8A5] px-2 py-0.5 text-[11px] font-bold text-[#0B1B4F]">
                     {currentRoadmap.categoryLabel}
                   </span>
                   <span className="text-slate-300">•</span>
-                  <span className="text-xs text-slate-500 font-medium">
+                  <span className="text-xs text-slate-600 font-medium">
                     {currentRoadmap.sponsoringBody}
                   </span>
                 </div>
-                <h2 className="text-lg font-bold text-slate-900">
+                <h2 className="text-xl sm:text-2xl font-black text-[#0B1B4F] font-serif">
                   {currentRoadmap.schemeTitle}
                 </h2>
               </div>
 
               {/* Benefit & Fee Chips */}
               <div className="flex flex-wrap items-center gap-3">
-                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-3.5 py-2 text-xs">
-                  <span className="text-[10px] text-emerald-700 font-bold uppercase block">Official Benefit</span>
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-2 text-xs">
+                  <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider block font-serif">Official Benefit</span>
                   <span className="font-bold text-emerald-950">{currentRoadmap.benefitHeadline}</span>
                 </div>
-                <div className="rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2 text-xs">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">Official Fee</span>
-                  <span className="font-bold text-slate-800">{currentRoadmap.officialFee}</span>
+                <div className="rounded-xl bg-[#FAF7F2] border border-[#DFC8A5] px-4 py-2 text-xs">
+                  <span className="text-[10px] text-[#0B1B4F] font-bold uppercase tracking-wider block font-serif">Official Fee</span>
+                  <span className="font-bold text-[#0B1B4F]">{currentRoadmap.officialFee}</span>
                 </div>
-                <div className="rounded-xl bg-slate-50 border border-slate-200 px-3.5 py-2 text-xs">
-                  <span className="text-[10px] text-slate-500 font-bold uppercase block">Statutory SLA</span>
-                  <span className="font-bold text-slate-800">{currentRoadmap.statutoryTimeLimit}</span>
+                <div className="rounded-xl bg-[#FAF7F2] border border-[#DFC8A5] px-4 py-2 text-xs">
+                  <span className="text-[10px] text-[#0B1B4F] font-bold uppercase tracking-wider block font-serif">Statutory SLA</span>
+                  <span className="font-bold text-[#0B1B4F]">{currentRoadmap.statutoryTimeLimit}</span>
                 </div>
               </div>
             </div>
 
             {/* Live Document Readiness Meter */}
-            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-semibold text-slate-700 flex items-center gap-1.5">
-                  <Activity className="size-4 text-indigo-600" />
+            <div className="rounded-xl border border-[#EDE6DD] bg-[#FAF7F2] p-4.5">
+              <div className="flex items-center justify-between text-xs mb-2.5">
+                <span className="font-bold text-[#0B1B4F] flex items-center gap-2 font-serif">
+                  <Activity className="size-4 text-amber-700" />
                   Applicant Readiness for this Scheme: {readyCount} of {allSingleDocs.length} items verified
                 </span>
-                <span className="font-mono font-bold text-slate-900">{readinessPercent}% Ready</span>
+                <span className="font-mono font-bold text-[#0B1B4F]">{readinessPercent}% Ready</span>
               </div>
-              <div className="h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
+              <div className="h-2.5 w-full rounded-full bg-[#EBDDCB] overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
                     readinessPercent >= 80
-                      ? "bg-emerald-500"
+                      ? "bg-emerald-600"
                       : readinessPercent >= 50
-                      ? "bg-amber-500"
-                      : "bg-indigo-500"
+                      ? "bg-[#DFB738]"
+                      : "bg-[#0B1B4F]"
                   }`}
                   style={{ width: `${readinessPercent}%` }}
                 />
@@ -413,7 +434,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
             {/* PART A: 3-Tier Visual Prerequisite Dependency Chain */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                <h4 className="text-sm font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
                   The Specific 3-Tier Prerequisite Chain
                 </h4>
                 <span className="text-xs text-slate-500">
@@ -423,15 +444,15 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
 
               <div className="grid gap-4 lg:grid-cols-3">
                 {/* TIER 1: Foundational Base Identity */}
-                <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-4 flex flex-col justify-between">
+                <div className="rounded-xl border border-[#EDE6DD] bg-[#FAF7F2]/80 p-4.5 flex flex-col justify-between shadow-2xs">
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="rounded bg-slate-200 px-2 py-0.5 font-mono text-[10px] font-bold text-slate-700 uppercase">
+                      <span className="rounded bg-[#0B1B4F] px-2.5 py-0.5 font-mono text-[10px] font-bold text-[#F5E29F] uppercase">
                         Tier 1: Base Proofs
                       </span>
                       <span className="text-[11px] text-slate-500 font-medium">Foundational</span>
                     </div>
-                    <h5 className="text-xs font-bold text-slate-800 mb-2">
+                    <h5 className="text-xs font-bold text-[#0B1B4F] mb-2 font-serif">
                       Primary Identity Documents
                     </h5>
                     <ul className="space-y-2.5">
@@ -441,7 +462,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                           onClick={() => toggleCheckItem(doc.name)}
                           className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer group"
                         >
-                          <span className="mt-0.5 shrink-0 text-slate-400 group-hover:text-indigo-600">
+                          <span className="mt-0.5 shrink-0 text-slate-400 group-hover:text-amber-700">
                             {checkedItems[doc.name] ? (
                               <CheckSquare className="size-4 text-emerald-600" />
                             ) : (
@@ -449,7 +470,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                             )}
                           </span>
                           <div>
-                            <span className="font-semibold block">{doc.name}</span>
+                            <span className="font-semibold block text-[#0B1B4F]">{doc.name}</span>
                             <span className="text-[11px] text-slate-500 leading-tight block">
                               {doc.requirement}
                             </span>
@@ -458,82 +479,118 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       ))}
                     </ul>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-slate-200/60 text-[11px] text-slate-500">
-                    Source: UIDAI & State Civil Supplies
+                  <div className="mt-4 pt-3 border-t border-[#EDE6DD] flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Source: UIDAI & Civil Supplies</span>
+                    <div className="flex items-center gap-1.5">
+                      <a
+                        href="https://myaadhaar.uidai.gov.in/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-[#0B1B4F] bg-white border border-[#DACBB8] hover:bg-[#FAF7F2]"
+                        title="UIDAI myAadhaar e-KYC Portal"
+                      >
+                        <span>UIDAI e-KYC</span>
+                        <ExternalLink className="size-2.5" />
+                      </a>
+                      <a
+                        href="https://www.digilocker.gov.in/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-[#0B1B4F] bg-white border border-[#DACBB8] hover:bg-[#FAF7F2]"
+                        title="DigiLocker Official Portal"
+                      >
+                        <span>DigiLocker</span>
+                        <ExternalLink className="size-2.5" />
+                      </a>
+                    </div>
                   </div>
                 </div>
 
                 {/* TIER 2: Statutory Government Certificates */}
-                <div className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 relative flex flex-col justify-between">
-                  <div className="hidden lg:block absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full border border-slate-200 p-1 shadow-xs">
-                    <ArrowRight className="size-3 text-slate-400" />
+                <div className="rounded-xl border border-[#DFC8A5] bg-amber-50/40 p-4.5 relative flex flex-col justify-between shadow-2xs">
+                  <div className="hidden lg:block absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full border border-[#DFC8A5] p-1 shadow-xs">
+                    <ArrowRight className="size-3 text-amber-700" />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="rounded bg-amber-200 px-2 py-0.5 font-mono text-[10px] font-bold text-amber-900 uppercase">
-                        Tier 2: Certificates
+                      <span className="rounded bg-amber-200 px-2.5 py-0.5 font-mono text-[10px] font-bold text-amber-900 uppercase">
+                        Tier 2: Statutory
                       </span>
-                      <span className="text-[11px] text-amber-800 font-medium">Revenue Dept</span>
+                      <span className="text-[11px] text-amber-900 font-medium">Certificates</span>
                     </div>
-                    <h5 className="text-xs font-bold text-amber-950 mb-2">
-                      Statutory Certificates Required
+                    <h5 className="text-xs font-bold text-[#0B1B4F] mb-2 font-serif">
+                      Government Issued Proofs
                     </h5>
+
                     {currentRoadmap.tier2StatutoryCertificates.length === 0 ? (
-                      <p className="text-xs text-slate-500 italic">No secondary statutory certificates required for this service.</p>
+                      <p className="text-xs text-slate-500 italic">
+                        No special caste or community certificates mandated for this general scheme.
+                      </p>
                     ) : (
-                      <ul className="space-y-3">
+                      <ul className="space-y-2.5">
                         {currentRoadmap.tier2StatutoryCertificates.map((cert, idx) => (
                           <li
                             key={idx}
                             onClick={() => toggleCheckItem(cert.certificateId)}
-                            className="rounded-lg border border-amber-200/80 bg-white p-2.5 text-xs text-slate-800 cursor-pointer hover:border-amber-400 transition-colors"
+                            className="flex items-start gap-2 text-xs text-slate-800 cursor-pointer group"
                           >
-                            <div className="flex items-start gap-2">
-                              <span className="mt-0.5 shrink-0">
-                                {checkedItems[cert.certificateId] ? (
-                                  <CheckSquare className="size-4 text-emerald-600" />
-                                ) : (
-                                  <Square className="size-4 text-slate-400" />
-                                )}
+                            <span className="mt-0.5 shrink-0 text-slate-400 group-hover:text-amber-700">
+                              {checkedItems[cert.certificateId] ? (
+                                <CheckSquare className="size-4 text-emerald-600" />
+                              ) : (
+                                <Square className="size-4" />
+                              )}
+                            </span>
+                            <div className="flex-1">
+                              <span className="font-semibold block text-[#0B1B4F]">
+                                {cert.name}
                               </span>
-                              <div className="flex-1 min-w-0">
-                                <span className="font-bold text-amber-950 block truncate">{cert.name}</span>
-                                <div className="mt-1 grid grid-cols-2 gap-1 text-[10px] text-slate-500">
-                                  <span>Authority: <strong>{cert.authority.split("/")[0]}</strong></span>
-                                  <span>Cost: <strong>{cert.statutoryCost}</strong></span>
-                                  <span>Turnaround: <strong>{cert.turnaround}</strong></span>
-                                  <span>Validity: <strong>{cert.validity.split("(")[0]}</strong></span>
-                                </div>
-                                <p className="mt-1 text-[10px] text-amber-800 font-medium">
-                                  {cert.keyCondition}
-                                </p>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[10px]">
+                                <span className="font-mono text-slate-500">{cert.authority}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-amber-800 font-bold">{cert.turnaround}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-[#0B1B4F]">{cert.statutoryCost}</span>
                               </div>
+                              <p className="text-[11px] text-slate-500 mt-1 leading-tight">
+                                {cert.keyCondition}
+                              </p>
                             </div>
                           </li>
                         ))}
                       </ul>
                     )}
                   </div>
-                  <div className="mt-4 pt-3 border-t border-amber-200/60 text-[11px] text-amber-800">
-                    Authority: Tahsildar / Sub-Divisional Officer
+                  <div className="mt-4 pt-3 border-t border-[#DFC8A5]/60 flex items-center justify-between text-[11px] text-amber-900 font-medium">
+                    <span>Tahsildar / Revenue Desk</span>
+                    <a
+                      href={userState === "Tamil Nadu" ? "https://www.tnesevai.tn.gov.in/" : "https://onlineap.meeseva.gov.in/"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-amber-950 bg-white border border-amber-300 hover:bg-amber-100"
+                      title={userState === "Tamil Nadu" ? "TNeGA e-Sevai Portal" : "AP MeeSeva Citizen Portal"}
+                    >
+                      <span>{userState === "Tamil Nadu" ? "e-Sevai Portal" : "MeeSeva Portal"}</span>
+                      <ExternalLink className="size-2.5" />
+                    </a>
                   </div>
                 </div>
 
                 {/* TIER 3: Institutional Verification & Banking Gateways */}
-                <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 relative flex flex-col justify-between">
-                  <div className="hidden lg:block absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full border border-slate-200 p-1 shadow-xs">
-                    <ArrowRight className="size-3 text-slate-400" />
+                <div className="rounded-xl border border-[#DFC8A5] bg-[#FAF7F2]/80 p-4.5 relative flex flex-col justify-between shadow-2xs">
+                  <div className="hidden lg:block absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white rounded-full border border-[#DFC8A5] p-1 shadow-xs">
+                    <ArrowRight className="size-3 text-amber-700" />
                   </div>
 
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <span className="rounded bg-indigo-200 px-2 py-0.5 font-mono text-[10px] font-bold text-indigo-950 uppercase">
+                      <span className="rounded bg-[#0B1B4F] px-2.5 py-0.5 font-mono text-[10px] font-bold text-[#F5E29F] uppercase">
                         Tier 3: Institutional
                       </span>
-                      <span className="text-[11px] text-indigo-800 font-medium">Verification</span>
+                      <span className="text-[11px] text-[#0B1B4F] font-medium">Verification</span>
                     </div>
-                    <h5 className="text-xs font-bold text-indigo-950 mb-2">
+                    <h5 className="text-xs font-bold text-[#0B1B4F] mb-2 font-serif">
                       {currentRoadmap.type === "healthcare"
                         ? "Clinical Requisitions & Pre-Auth"
                         : "Academic & Banking Clearance"}
@@ -545,7 +602,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                           onClick={() => toggleCheckItem(item.name)}
                           className="flex items-start gap-2 text-xs text-slate-800 cursor-pointer group"
                         >
-                          <span className="mt-0.5 shrink-0 text-slate-400 group-hover:text-indigo-600">
+                          <span className="mt-0.5 shrink-0 text-slate-400 group-hover:text-amber-700">
                             {checkedItems[item.name] ? (
                               <CheckSquare className="size-4 text-emerald-600" />
                             ) : (
@@ -553,8 +610,8 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                             )}
                           </span>
                           <div>
-                            <span className="font-semibold block">{item.name}</span>
-                            <span className="text-[11px] text-indigo-900/80 leading-tight block">
+                            <span className="font-semibold block text-[#0B1B4F]">{item.name}</span>
+                            <span className="text-[11px] text-slate-600 leading-tight block">
                               Authority: {item.authority}
                             </span>
                             <span className="text-[10px] text-slate-500 block mt-0.5">
@@ -565,25 +622,35 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       ))}
                     </ul>
                   </div>
-                  <div className="mt-4 pt-3 border-t border-indigo-200/60 text-[11px] text-indigo-900 font-semibold">
-                    Banking: {currentRoadmap.bankingRequirement}
+                  <div className="mt-4 pt-3 border-t border-[#EDE6DD] flex items-center justify-between text-[11px] text-[#0B1B4F] font-semibold">
+                    <span>Banking: {currentRoadmap.bankingRequirement}</span>
+                    <a
+                      href="https://myaadhaar.uidai.gov.in/check-aadhaar-bank-seeding-status"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-bold text-indigo-900 bg-white border border-indigo-200 hover:bg-indigo-50"
+                      title="Check NPCI Aadhaar Bank Seeding Status"
+                    >
+                      <span>Check NPCI Seeding</span>
+                      <ExternalLink className="size-2.5" />
+                    </a>
                   </div>
                 </div>
               </div>
             </div>
 
             {/* PART B: 5-Stage Life Cycle Pipeline */}
-            <div className="space-y-4 pt-4 border-t border-slate-100">
+            <div className="space-y-4 pt-4 border-t border-[#EDE6DD]">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                  <h4 className="text-sm font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
                     Official 5-Stage Processing Timeline & Rejection Gates
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
                     How an application flows from initial submission to final disbursement.
                   </p>
                 </div>
-                <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">
+                <span className="rounded-md bg-[#FAF7F2] border border-[#DFC8A5] px-2.5 py-1 text-xs font-bold text-[#0B1B4F]">
                   5 Verification Gates
                 </span>
               </div>
@@ -592,21 +659,21 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                 {currentRoadmap.stages.map((stage) => (
                   <div
                     key={stage.stageNumber}
-                    className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col justify-between"
+                    className="luxury-card rounded-xl p-4.5 flex flex-col justify-between border-[#EDE6DD]"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="flex size-6 items-center justify-center rounded-full bg-indigo-600 text-xs font-bold text-white">
+                        <span className="flex size-6 items-center justify-center rounded-full bg-[#0B1B4F] text-xs font-bold text-[#F5E29F] font-serif shadow-xs">
                           {stage.stageNumber}
                         </span>
                         <span className="font-mono text-[10px] font-bold text-slate-500">
                           {stage.timeline}
                         </span>
                       </div>
-                      <h5 className="text-xs font-bold text-slate-900 leading-snug">
+                      <h5 className="text-xs font-bold text-[#0B1B4F] leading-snug font-serif">
                         {stage.stageName}
                       </h5>
-                      <span className="text-[10px] font-semibold text-indigo-700 block mt-0.5">
+                      <span className="text-[10px] font-bold text-amber-800 block mt-0.5">
                         Actor: {stage.actor}
                       </span>
                       <p className="mt-2 text-[11px] text-slate-600 leading-relaxed">
@@ -614,11 +681,11 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       </p>
                     </div>
 
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
-                      <div className="rounded bg-emerald-50 p-1.5 text-[10px] text-emerald-900 font-medium">
+                    <div className="mt-3 pt-2.5 border-t border-[#EDE6DD] space-y-1.5">
+                      <div className="rounded bg-emerald-50 border border-emerald-100 p-1.5 text-[10px] text-emerald-950 font-medium">
                         <strong>Action:</strong> {stage.actionItem}
                       </div>
-                      <div className="rounded bg-rose-50 p-1.5 text-[10px] text-rose-900 font-medium">
+                      <div className="rounded bg-rose-50 border border-rose-100 p-1.5 text-[10px] text-rose-950 font-medium">
                         <strong>Rejection Risk:</strong> {stage.commonPitfall}
                       </div>
                     </div>
@@ -628,10 +695,10 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
             </div>
 
             {/* PART C: Direct Portal & Offline Action Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl bg-slate-50 p-4 border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 rounded-xl bg-[#FAF7F2] p-4.5 border border-[#DFC8A5]">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-xs text-slate-700">
-                  <MapPin className="size-4 text-indigo-600 shrink-0" />
+                  <MapPin className="size-4 text-amber-700 shrink-0" />
                   <span><strong>Physical Counter:</strong> {currentRoadmap.offlineCounter}</span>
                 </div>
                 <div className="text-[11px] text-slate-500">
@@ -644,7 +711,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                   href={currentRoadmap.portalUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700 transition-colors shadow-xs"
+                  className="flex items-center gap-2 rounded-lg bg-[#0B1B4F] px-4.5 py-2 text-xs font-bold text-[#F5E29F] hover:bg-[#152864] transition-all shadow-md border border-[#DFB738]/40"
                 >
                   <span>Open Official Portal</span>
                   <ExternalLink className="size-3.5" />
@@ -653,15 +720,15 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
             </div>
 
             {/* Rejection Checklist */}
-            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4 space-y-2">
-              <div className="flex items-center gap-2 text-amber-950 font-bold text-xs">
+            <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4.5 space-y-2.5">
+              <div className="flex items-center gap-2 text-amber-950 font-bold text-xs font-serif">
                 <AlertTriangle className="size-4 text-amber-600" />
                 <span>Critical Precautions to Prevent Rejection for {currentRoadmap.shortCode}:</span>
               </div>
-              <div className="grid gap-2 sm:grid-cols-2 text-xs">
+              <div className="grid gap-2.5 sm:grid-cols-2 text-xs">
                 {currentRoadmap.rejectionChecklist.map((item, idx) => (
-                  <div key={idx} className="rounded-lg bg-white p-3 border border-amber-200/60">
-                    <p className="font-semibold text-slate-900 mb-1">{item.check}</p>
+                  <div key={idx} className="rounded-lg bg-white p-3.5 border border-amber-200/80 shadow-2xs">
+                    <p className="font-bold text-[#0B1B4F] mb-1 font-serif">{item.check}</p>
                     <p className="text-[11px] text-slate-600">{item.resolution}</p>
                   </div>
                 ))}
@@ -677,10 +744,10 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
       {viewMode === "MERGED" && (
         <div className="space-y-6">
           {/* Multi-Scheme Selection Panel */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-[#EDE6DD] pb-3.5">
               <div>
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                <h4 className="text-sm sm:text-base font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
                   Select Schemes to Merge into a Single Action Plan
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
@@ -696,7 +763,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       onClick={() =>
                         setMergedSelection(["AP_Jagananna_Vidya_Deevena", "AP_YSR_Aarogyasri", "AP_Integrated_Community_Cert"])
                       }
-                      className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 cursor-pointer border border-indigo-200"
+                      className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-bold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                     >
                       Combo: AP Vidya Deevena + YSR Aarogyasri
                     </button>
@@ -704,7 +771,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       onClick={() =>
                         setMergedSelection(["AP_Amma_Vodi", "AP_YSR_Aarogyasri", "Income_Certificate"])
                       }
-                      className="rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-800 hover:bg-teal-100 cursor-pointer border border-teal-200"
+                      className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-bold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                     >
                       Combo: Amma Vodi + Aarogyasri
                     </button>
@@ -717,7 +784,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       onClick={() =>
                         setMergedSelection(["TN_Pudhumai_Penn", "TN_CMCHIS_Medical", "TN_First_Graduate"])
                       }
-                      className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-bold text-indigo-800 hover:bg-indigo-100 cursor-pointer border border-indigo-200"
+                      className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-bold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                     >
                       Combo: TN Pudhumai Penn + CMCHIS Health
                     </button>
@@ -725,7 +792,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       onClick={() =>
                         setMergedSelection(["TN_7_5_Govt_School_Quota", "TN_CMCHIS_Medical", "Income_Certificate"])
                       }
-                      className="rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-800 hover:bg-emerald-100 cursor-pointer border border-emerald-200"
+                      className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-bold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                     >
                       Combo: TN 7.5% Quota + CMCHIS
                     </button>
@@ -736,7 +803,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                   onClick={() =>
                     setMergedSelection(["PostMatric_ST", "Ayushman_PMJAY", "Income_Certificate"])
                   }
-                  className="rounded-lg bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-100 cursor-pointer border border-indigo-200"
+                  className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-semibold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                 >
                   Combo: ST Scholarship + PM-JAY Relief
                 </button>
@@ -744,7 +811,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                   onClick={() =>
                     setMergedSelection(["AICTE_Pragati", "Ayushman_PMJAY", "Income_Certificate"])
                   }
-                  className="rounded-lg bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-700 hover:bg-pink-100 cursor-pointer border border-pink-200"
+                  className="rounded-lg bg-[#FAF7F2] px-3 py-1.5 text-xs font-semibold text-[#0B1B4F] hover:bg-[#F4ECE1] hover:border-[#DFB738] transition-all cursor-pointer border border-[#DFC8A5] shadow-2xs"
                 >
                   Combo: Girl Tech Student + Medical
                 </button>
@@ -758,28 +825,28 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                 return (
                   <label
                     key={scheme.id}
-                    className={`flex items-start gap-2.5 rounded-xl border p-3 text-xs cursor-pointer transition-all ${
+                    className={`flex items-start gap-2.5 rounded-xl border p-3.5 text-xs cursor-pointer transition-all ${
                       isChecked
-                        ? "border-indigo-500 bg-indigo-50/50 shadow-xs ring-1 ring-indigo-500"
-                        : "border-slate-200 bg-slate-50/60 hover:bg-slate-100/80"
+                        ? "border-[#DFB738] bg-[#FAF7F2] shadow-sm ring-1 ring-[#DFB738]"
+                        : "border-[#EDE6DD] bg-white hover:bg-[#FAF7F2]/60"
                     }`}
                   >
                     <input
                       type="checkbox"
                       checked={isChecked}
                       onChange={() => toggleMergedScheme(scheme.id)}
-                      className="mt-0.5 rounded text-indigo-600 focus:ring-indigo-500 size-4"
+                      className="mt-0.5 rounded text-[#0B1B4F] focus:ring-[#DFB738] size-4 accent-[#0B1B4F]"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1 mb-0.5">
                         <span className="font-mono text-[10px] font-bold text-slate-500">
                           {scheme.shortCode}
                         </span>
-                        <span className="text-[10px] font-semibold text-indigo-700">
+                        <span className="text-[10px] font-bold text-amber-800">
                           {scheme.type}
                         </span>
                       </div>
-                      <span className="font-bold text-slate-900 block truncate">
+                      <span className="font-bold text-[#0B1B4F] block truncate font-serif">
                         {scheme.title}
                       </span>
                       <span className="text-[10px] text-slate-500 block truncate mt-0.5">
@@ -793,21 +860,21 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
           </div>
 
           {/* Merged Highlights Banner */}
-          <div className="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-blue-50/70 p-5 shadow-xs">
+          <div className="rounded-2xl border border-[#DFB738]/40 bg-[#FAF7F2] p-5.5 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-wider">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider font-serif">
                   Merged Multi-Scheme Impact ({mergedData.selectedSchemes.length} Schemes Selected)
                 </span>
-                <h3 className="text-base font-bold text-indigo-950">
+                <h3 className="text-lg font-bold text-[#0B1B4F] font-serif">
                   Combined Welfare Value: {mergedData.totalCombinedBenefit}
                 </h3>
-                <p className="text-xs text-indigo-800">
-                  Total Statutory Government Fee: <strong>{mergedData.totalStatutoryFees}</strong>
+                <p className="text-xs text-slate-600">
+                  Total Statutory Government Fee: <strong className="text-[#0B1B4F]">{mergedData.totalStatutoryFees}</strong>
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-800 bg-emerald-100/80 rounded-xl px-3 py-2 border border-emerald-200">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-900 bg-emerald-50 rounded-xl px-3.5 py-2.5 border border-emerald-200">
                 <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
                 <span>
                   {mergedData.sharedStatutoryCertificates.filter((c) => c.isOverlapping).length} Shared Certificates Detected (Zero Duplication)
@@ -817,36 +884,36 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
           </div>
 
           {/* 1. Shared Statutory Certificates (The Synergy Engine) */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EDE6DD] pb-3.5">
               <div>
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                <h4 className="text-sm sm:text-base font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
                   Shared Statutory Certificates (Apply Once, Use Everywhere)
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Instead of paying multiple times, these certificates simultaneously satisfy multiple schemes.
                 </p>
               </div>
-              <span className="rounded-md bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+              <span className="rounded-md bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-bold text-amber-900 font-serif">
                 Overlapping Prerequisites
               </span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {mergedData.sharedStatutoryCertificates.map((cert) => (
                 <div
                   key={cert.certificateId}
-                  className={`rounded-xl border p-4 flex flex-col justify-between ${
+                  className={`rounded-xl border p-4.5 flex flex-col justify-between transition-all ${
                     cert.isOverlapping
-                      ? "border-emerald-300 bg-emerald-50/40 shadow-xs ring-1 ring-emerald-300"
-                      : "border-slate-200 bg-slate-50/60"
+                      ? "border-[#DFB738] bg-[#FAF7F2] shadow-sm ring-1 ring-[#DFB738]/50"
+                      : "border-[#EDE6DD] bg-white"
                   }`}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2 mb-2">
-                      <span className="font-bold text-xs text-slate-900">{cert.name}</span>
+                      <span className="font-bold text-xs text-[#0B1B4F] font-serif">{cert.name}</span>
                       {cert.isOverlapping && (
-                        <span className="rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        <span className="rounded-full bg-[#0B1B4F] px-2.5 py-0.5 text-[10px] font-bold text-[#F5E29F] font-serif">
                           Used in {cert.sharedCount} Schemes
                         </span>
                       )}
@@ -858,7 +925,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-2.5 border-t border-slate-200/70 text-[10px] font-medium text-slate-500">
+                  <div className="mt-3 pt-2.5 border-t border-[#EDE6DD] text-[10px] font-medium text-slate-500">
                     Unlocks: {cert.usedInSchemes.join(", ")}
                   </div>
                 </div>
@@ -867,17 +934,17 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
           </div>
 
           {/* 2. Consolidated Physical Visit Plan */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-4">
+            <div className="flex items-center justify-between border-b border-[#EDE6DD] pb-3.5">
               <div>
-                <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                <h4 className="text-sm sm:text-base font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
                   The Single-Visit Physical Action Plan
                 </h4>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Consolidated stops to accomplish all requirements with zero wasted trips.
                 </p>
               </div>
-              <span className="rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-semibold text-indigo-900">
+              <span className="rounded-md bg-[#FAF7F2] border border-[#DFC8A5] px-2.5 py-0.5 text-xs font-bold text-[#0B1B4F]">
                 Route Efficiency
               </span>
             </div>
@@ -886,20 +953,20 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
               {mergedData.consolidatedVisitPlan.map((visit, idx) => (
                 <div
                   key={idx}
-                  className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 space-y-3"
+                  className="rounded-xl border border-[#EDE6DD] bg-[#FAF7F2]/60 p-4.5 space-y-3"
                 >
                   <div className="flex items-start gap-2.5">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white mt-0.5">
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#0B1B4F] text-xs font-bold text-[#F5E29F] font-serif mt-0.5 shadow-xs">
                       {idx + 1}
                     </span>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-900">{visit.location}</h5>
+                      <h5 className="text-xs font-bold text-[#0B1B4F] font-serif">{visit.location}</h5>
                       <p className="text-[11px] text-slate-600 mt-0.5">{visit.purpose}</p>
                     </div>
                   </div>
 
-                  <div className="rounded-lg bg-white p-2.5 border border-slate-200 text-xs space-y-1">
-                    <span className="font-semibold text-slate-700 text-[11px] block">
+                  <div className="rounded-lg bg-white p-3 border border-[#EDE6DD] text-xs space-y-1 shadow-2xs">
+                    <span className="font-bold text-[#0B1B4F] text-[11px] block font-serif">
                       Documents to Carry:
                     </span>
                     <ul className="list-disc list-inside text-[11px] text-slate-600 space-y-0.5">
@@ -910,10 +977,10 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
-                    <span className="font-semibold text-slate-700">
+                    <span className="font-bold text-[#0B1B4F]">
                       Fee: {visit.statutoryFee}
                     </span>
-                    <span className="text-emerald-700 font-medium">
+                    <span className="text-emerald-800 font-semibold">
                       💡 {visit.timeEfficiencyNote}
                     </span>
                   </div>
