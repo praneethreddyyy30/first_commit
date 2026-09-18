@@ -69,7 +69,7 @@ h1, h2, h3, .font-serif {
 }
 
 .luxury-hero-gradient {
-  background: radial-gradient(circle at 10% 20%, #FFF7EC 0%, #FAF0E1 45%, #F4ECE1 90%);
+  background: linear-gradient(135deg, #0B1B4F 0%, #152864 50%, #071233 100%);
 }
 
 .luxury-gold-border {

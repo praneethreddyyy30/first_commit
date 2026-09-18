@@ -122,6 +122,42 @@ async function testAllEndpoints() {
     console.error("   ✗ FAIL: Chat API error", err.message);
   }
 
+  // Test 5: Scheme Workspace Auto-Detection in AI Copilot (POST /api/chat with targetSchemeId)
+  console.log("5. Testing Scheme Auto-Detection in Copilot (Target: AP-JVD-MTF)...");
+  try {
+    const schemeChatPayload = {
+      query: "What are the documents required for this scheme?",
+      history: [],
+      language: "en",
+      targetSchemeId: "AP-JVD-MTF",
+      profile: {
+        name: "Ananya Reddy",
+        state: "Andhra Pradesh",
+        district: "NTR / Krishna",
+        category: "General",
+        annualFamilyIncome: 140000,
+        educationLevel: "Degree",
+        courseType: "Regular Full-Time"
+      }
+    };
+    const res = await fetch(`${baseUrl}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(schemeChatPayload)
+    });
+    console.log(`   Status: ${res.status} ${res.statusText}`);
+    const data = await res.json();
+    console.log(`   AI Engine: ${data.modelUsed}`);
+    console.log(`   Answer Preview:\n${data.answer.substring(0, 300)}...\n`);
+    if (data.success && (data.answer.includes("AP-JVD-MTF") || data.answer.includes("Vasathi Deevena") || data.answer.includes("MeeSeva"))) {
+      console.log("   ✓ PASS: Copilot automatically detected AP-JVD-MTF and returned specific documents!\n");
+    } else {
+      console.error("   ✗ FAIL: Copilot did not scope response to AP-JVD-MTF.\n");
+    }
+  } catch (err) {
+    console.error("   ✗ FAIL: Scheme Auto-Detection Chat test error", err.message);
+  }
+
   console.log("================================================================");
   console.log("✓ ALL FUNCTIONALITIES VERIFIED LIVE ON http://localhost:3000");
   console.log("================================================================");

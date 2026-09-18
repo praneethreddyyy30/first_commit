@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Send,
   Mic,
@@ -21,6 +21,7 @@ import {
 import type { ChatMessage } from "@/lib/bedrock/bedrockClient";
 import { UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
 import { DocumentAuditResult, DocumentAuditInput } from "@/lib/audit/documentAuditor";
+import { SCHEMES_DATABASE } from "@/data/schemes";
 
 interface AiCopilotTabProps {
   profile?: UserProfile;
@@ -45,7 +46,7 @@ function renderInlineMarkdown(line: string, isUser: boolean) {
       elements.push(line.slice(lastIndex, match.index));
     }
     const token = match[0];
-    const key = `token-${match.index}-${lastIndex}`;
+    const key = `${match.index}-${token}`;
 
     if (token.startsWith("**") && token.endsWith("**") && token.length >= 4) {
       // Bold: Strip asterisks and render bold text
@@ -157,12 +158,49 @@ export const AiCopilotTab: React.FC<AiCopilotTabProps> = ({
   auditResult,
   auditInput,
 }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content: `Hello ${profile?.name || "Citizen"}! 👋 I am your JanSetu AI Civic Copilot.
+  // Resolve active scheme if passed
+  const activeScheme = useMemo(() => {
+    if (!targetSchemeId) return undefined;
+    return SCHEMES_DATABASE.find(
+      (s) =>
+        s.id.toLowerCase() === targetSchemeId.toLowerCase() ||
+        s.shortCode.toLowerCase() === targetSchemeId.toLowerCase() ||
+        s.id.toLowerCase().replace(/_/g, "-") === targetSchemeId.toLowerCase().replace(/_/g, "-")
+    );
+  }, [targetSchemeId]);
 
-I can see your profile is loaded as a **${profile?.category || "ST"}** student from **${profile?.state || "Tamil Nadu"}** (Annual Family Income: ₹${profile?.annualFamilyIncome?.toLocaleString("en-IN") || "1,80,000"}).
+  const activeSchemeEval = useMemo(() => {
+    if (!activeScheme || !evaluationResults) return undefined;
+    return evaluationResults.find(
+      (r) => r.scheme.id === activeScheme.id || r.scheme.shortCode === activeScheme.shortCode
+    );
+  }, [activeScheme, evaluationResults]);
+
+  const isCurrentSchemeEligible = activeSchemeEval ? activeSchemeEval.decision === "ALLOW" : false;
+
+  const buildInitialGreeting = (): string => {
+    if (activeScheme) {
+      return `Hello **${profile?.name || "Citizen"}**! 👋 I am your **JanSetu AI Civic Copilot**.
+
+🎯 **Active Scheme Auto-Detected:** **${activeScheme.title}** (\`${activeScheme.shortCode}\`)
+• **Sponsoring Authority:** ${activeScheme.ministry}
+• **Financial Benefit:** **${activeScheme.benefitAmount}**
+• **Cedar Policy Status:** ${isCurrentSchemeEligible ? "✅ **100% ELIGIBLE** for your active profile" : `⚠️ **Ineligible based on current criteria** (${activeSchemeEval?.failedReasons.join("; ") || "Criteria mismatch"})`}
+• **Official Portal:** [${activeScheme.portalName}](${activeScheme.officialPortalUrl})
+
+I have automatically focused all answers and RAG retrieval on **${activeScheme.shortCode}**. You don't need to specify the scheme name! Ask me:
+• *"What are the documents required for this scheme?"*
+• *"What are the 5 verification stages & timeline?"*
+• *"Am I eligible and how to apply?"*
+• *"Where is the nearest Seva Center to submit documents?"*`;
+    }
+
+    const eligibleCount = evaluationResults?.filter((r) => r.decision === "ALLOW").length || 0;
+    return `Hello **${profile?.name || "Citizen"}**! 👋 I am your **JanSetu AI Civic Copilot**.
+
+I can see your active profile is loaded as a **${profile?.category || "ST"}** student from **${profile?.state || "Tamil Nadu"}** (Annual Family Income: ₹${profile?.annualFamilyIncome?.toLocaleString("en-IN") || "1,80,000"}).
+
+Based on deterministic AWS Cedar policies, you are eligible for **${eligibleCount} government schemes**! 🎯
 
 Ask me anything! Here are popular queries:
 • "What are the eligible schemes I am eligible for?"
@@ -170,7 +208,13 @@ Ask me anything! Here are popular queries:
 • "Check my document audit & NPCI status"
 • "What are the requirements for this scheme?"
 • "What are the documents required for this particular scheme?"
-• "How can I do it?"`,
+• "How can I do it?"`;
+  };
+
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      role: "assistant",
+      content: buildInitialGreeting(),
     },
   ]);
   const [inputQuery, setInputQuery] = useState<string>("");
@@ -180,33 +224,21 @@ Ask me anything! Here are popular queries:
   const [language, setLanguage] = useState<"en" | "hi">("en");
   const [modelSource, setModelSource] = useState<string>("JanSetu-Civic-RAG (Zero-Fail / No Key Needed)");
 
-  // Dynamic profile synchronization: detect when citizen switches persona or updates details
-  const prevProfileRef = useRef<string>(
-    `${profile?.name}-${profile?.category}-${profile?.annualFamilyIncome}-${profile?.state}`
-  );
+  // Dynamic profile & scheme synchronization: detect when citizen switches persona or scheme
+  const prevSyncKeyRef = useRef<string>("");
 
   useEffect(() => {
-    const currentKey = `${profile?.name}-${profile?.category}-${profile?.annualFamilyIncome}-${profile?.state}`;
-    if (prevProfileRef.current !== currentKey) {
-      prevProfileRef.current = currentKey;
-      const eligibleCount = evaluationResults?.filter((r) => r.decision === "ALLOW").length || 0;
+    const currentSyncKey = `${targetSchemeId}-${profile?.name}-${profile?.category}-${profile?.annualFamilyIncome}-${profile?.state}-${isCurrentSchemeEligible}`;
+    if (prevSyncKeyRef.current !== currentSyncKey) {
+      prevSyncKeyRef.current = currentSyncKey;
       setMessages([
         {
           role: "assistant",
-          content: `Hello **${profile?.name || "Citizen"}**! 👋 I am your **JanSetu AI Civic Copilot**.
-
-I have dynamically synced your active profile:
-• **State:** ${profile?.state || "National"}
-• **Social Category:** **${profile?.category || "General"}** ${profile?.tnCommunity ? `(${profile.tnCommunity})` : profile?.apCommunity ? `(${profile.apCommunity})` : ""}
-• **Annual Family Income:** **₹${profile?.annualFamilyIncome?.toLocaleString("en-IN") || "0"}**
-• **Cedar Policy Eligibility:** **${eligibleCount} schemes currently available** for you.
-${auditResult ? `• **Document Pre-Flight:** ${auditResult.nameMatchPercentage}% Aadhaar/Marksheet match • NPCI Bank Status: ${auditResult.npciStatus}` : ""}
-
-Ask me anything about your eligible schemes, non-eligible schemes, documents, or roadmap!`,
+          content: buildInitialGreeting(),
         },
       ]);
     }
-  }, [profile, evaluationResults, auditResult]);
+  }, [targetSchemeId, profile, evaluationResults, auditResult, isCurrentSchemeEligible]);
 
   // Optional AWS Bedrock custom credentials state
   const [showAwsSettings, setShowAwsSettings] = useState<boolean>(false);
@@ -411,15 +443,24 @@ Ask me anything about your eligible schemes, non-eligible schemes, documents, or
     }
   };
 
-  const quickPrompts = [
-    "What are the eligible schemes I am eligible for?",
-    "What are the non-eligible schemes for me?",
-    "Check my document audit & NPCI status",
-    "What are the requirements for this scheme?",
-    "What are the documents required for this particular scheme?",
-    "How can I do it?",
-    "Why is NPCI Aadhaar seeding different from normal linking?"
-  ];
+  const quickPrompts = activeScheme
+    ? [
+        `What are the documents required for ${activeScheme.shortCode}?`,
+        `Am I eligible for ${activeScheme.shortCode}?`,
+        `What are the 5 verification stages & timeline for ${activeScheme.shortCode}?`,
+        `How do I apply for ${activeScheme.shortCode} step-by-step?`,
+        `Where is the nearest Seva Center for ${activeScheme.shortCode}?`,
+        "Check my document audit & NPCI status",
+      ]
+    : [
+        "What are the eligible schemes I am eligible for?",
+        "What are the non-eligible schemes for me?",
+        "Check my document audit & NPCI status",
+        "What are the requirements for this scheme?",
+        "What are the documents required for this particular scheme?",
+        "How can I do it?",
+        "Why is NPCI Aadhaar seeding different from normal linking?",
+      ];
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 font-sans">
@@ -571,6 +612,48 @@ Ask me anything about your eligible schemes, non-eligible schemes, documents, or
           <span>Ready • Zero Hallucination Guard Active</span>
         </div>
       </div>
+
+      {/* Active Scheme Context Ribbon (Auto-Detected) */}
+      {activeScheme && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#0B1B4F] via-[#152864] to-[#071233] border-2 border-[#DFB738]/60 p-4 text-white shadow-md">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-[#DFB738] text-[#0B1B4F] font-black text-base shadow-sm">
+              🎯
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold tracking-wider text-[#F5E29F]">
+                  Active Scheme Context Auto-Detected:
+                </span>
+                <span className="rounded bg-[#152864] px-2 py-0.5 font-mono text-[11px] font-black text-[#F5E29F] border border-[#DFB738]/40">
+                  {activeScheme.shortCode}
+                </span>
+                {isCurrentSchemeEligible ? (
+                  <span className="rounded bg-emerald-900/90 px-2 py-0.5 text-[10px] font-bold text-emerald-200 border border-emerald-500/40">
+                    ✓ 100% Eligible
+                  </span>
+                ) : (
+                  <span className="rounded bg-rose-900/90 px-2 py-0.5 text-[10px] font-bold text-rose-200 border border-rose-500/40">
+                    ✕ Ineligible
+                  </span>
+                )}
+              </div>
+              <h4 className="text-sm sm:text-base font-black text-white font-serif tracking-tight mt-0.5">
+                {activeScheme.title}
+              </h4>
+              <p className="text-[11px] text-slate-200">
+                {activeScheme.ministry} • Entitlement: <strong className="text-[#F5E29F]">{activeScheme.benefitAmount}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-[#F5E29F] bg-[#071233]/80 px-3 py-1.5 rounded-full border border-[#DFB738]/40 shadow-xs">
+              <Sparkles className="size-3 text-[#DFB738]" />
+              Prompts & answers tailored to {activeScheme.shortCode}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic Profile & Document Context Strip */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#EDE6DD] bg-white px-5 py-3 text-xs shadow-sm">
@@ -727,6 +810,10 @@ Ask me anything about your eligible schemes, non-eligible schemes, documents, or
               placeholder={
                 isListening
                   ? "Listening to your voice..."
+                  : activeScheme
+                  ? `Ask anything about ${activeScheme.shortCode} (e.g. documents, stages, eligibility)...`
+                  : language === "hi"
+                  ? "हिंदी या अंग्रेजी में पूछें (उदा: 'मैं किन योजनाओं के लिए पात्र हूँ?')..."
                   : "Ask about scholarships, documents, or NPCI bank seeding..."
               }
               className="flex-1 rounded-xl border border-[#EDE6DD] bg-white px-4 py-2.5 text-xs sm:text-sm text-slate-900 focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
