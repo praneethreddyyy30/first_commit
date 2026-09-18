@@ -62,6 +62,10 @@ export default function Home() {
 
   const handleProfileChange = (newProfile: UserProfile) => {
     setProfile(newProfile);
+    setAuditInput((prev) => ({
+      ...prev,
+      nameOnAadhaar: newProfile.name || "",
+    }));
     if (newProfile.state === "Andhra Pradesh" && targetSchemeId.startsWith("TN_")) {
       setTargetSchemeId("AP_Jagananna_Vidya_Deevena");
     } else if (newProfile.state === "Tamil Nadu" && targetSchemeId.startsWith("AP_")) {

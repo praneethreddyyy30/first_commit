@@ -29,34 +29,91 @@ export interface DocumentAuditResult {
 }
 
 /**
- * Calculates Levenshtein similarity between two strings
+ * Calculates similarity between two names using token-level matching (handling initials,
+ * abbreviations, and word-order permutations common in Indian documents) and character Levenshtein distance.
  */
 function calculateSimilarity(str1: string, str2: string): number {
-  const s1 = str1.trim().toLowerCase().replace(/\s+/g, ' ');
-  const s2 = str2.trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!str1 || !str2) return 0;
 
-  if (s1 === s2) return 100;
-  if (!s1 || !s2) return 0;
+  const raw1 = str1.trim();
+  const raw2 = str2.trim();
+  if (raw1.toLowerCase() === raw2.toLowerCase()) return 100;
 
-  // Check if one is an initial of another (e.g. "Ramesh K" vs "Ramesh Kumar")
-  const tokens1 = s1.split(' ');
-  const tokens2 = s2.split(' ');
+  // Clean tokens: lowercase, strip punctuation like dots, commas, slashes
+  const cleanTokens1 = raw1
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean);
 
-  if (tokens1.length === tokens2.length) {
-    let matches = 0;
-    for (let i = 0; i < tokens1.length; i++) {
-      if (tokens1[i] === tokens2[i]) {
-        matches++;
+  const cleanTokens2 = raw2
+    .toLowerCase()
+    .split(/\s+/)
+    .map((t) => t.replace(/[^a-z0-9]/g, ''))
+    .filter(Boolean);
+
+  if (cleanTokens1.length === 0 || cleanTokens2.length === 0) return 0;
+
+  // Token-level bipartite matching (handles "M. Sravani" vs "Madhira Sravani", "Sravani M" vs "Madhira Sravani")
+  const used2 = new Array(cleanTokens2.length).fill(false);
+  let totalMatchWeight = 0;
+
+  for (const t1 of cleanTokens1) {
+    let bestWeight = 0;
+    let bestIdx = -1;
+
+    for (let j = 0; j < cleanTokens2.length; j++) {
+      if (used2[j]) continue;
+      const t2 = cleanTokens2[j];
+
+      if (t1 === t2) {
+        bestWeight = 1.0;
+        bestIdx = j;
+        break; // Exact token match
       } else if (
-        (tokens1[i].length === 1 && tokens2[i].startsWith(tokens1[i])) ||
-        (tokens2[i].length === 1 && tokens1[i].startsWith(tokens2[i]))
+        (t1.length === 1 && t2.startsWith(t1)) ||
+        (t2.length === 1 && t1.startsWith(t2))
       ) {
-        matches += 0.75;
+        // Initial match (e.g. "m" and "madhira", or "s" and "selvam")
+        if (bestWeight < 0.85) {
+          bestWeight = 0.85;
+          bestIdx = j;
+        }
+      } else {
+        // Check small character edit distance between tokens (e.g. "Kavitha" vs "Kavita")
+        const levDist = levenshteinDistance(t1, t2);
+        const maxLen = Math.max(t1.length, t2.length);
+        const tokenSim = (maxLen - levDist) / maxLen;
+        if (tokenSim >= 0.75 && tokenSim > bestWeight) {
+          bestWeight = tokenSim * 0.85;
+          bestIdx = j;
+        }
       }
     }
-    return Math.round((matches / tokens1.length) * 100);
+
+    if (bestIdx !== -1) {
+      used2[bestIdx] = true;
+      totalMatchWeight += bestWeight;
+    }
   }
 
+  const maxTokenCount = Math.max(cleanTokens1.length, cleanTokens2.length);
+  const tokenScore = Math.round((totalMatchWeight / maxTokenCount) * 100);
+
+  // Also compute character-level Levenshtein similarity on normalized strings
+  const s1 = cleanTokens1.join(' ');
+  const s2 = cleanTokens2.join(' ');
+  const charDistance = levenshteinDistance(s1, s2);
+  const maxCharLen = Math.max(s1.length, s2.length);
+  const charScore = maxCharLen === 0 ? 100 : Math.round(((maxCharLen - charDistance) / maxCharLen) * 100);
+
+  return Math.max(tokenScore, charScore);
+}
+
+/**
+ * Standard Levenshtein Distance
+ */
+function levenshteinDistance(s1: string, s2: string): number {
   const m = s1.length;
   const n = s2.length;
   const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
@@ -74,10 +131,7 @@ function calculateSimilarity(str1: string, str2: string): number {
       );
     }
   }
-
-  const distance = dp[m][n];
-  const maxLen = Math.max(m, n);
-  return Math.round(((maxLen - distance) / maxLen) * 100);
+  return dp[m][n];
 }
 
 /**

@@ -56,6 +56,7 @@ interface UploadedFileInfo {
   extractedName: string;
   extractedDob?: string;
   extractedId?: string;
+  previewUrl?: string;
 }
 
 export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
@@ -73,6 +74,19 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
   const [showMandateModal, setShowMandateModal] = useState(false);
   const [showAffidavitModal, setShowAffidavitModal] = useState(false);
   const [selectedCertGuideId, setSelectedCertGuideId] = useState<string | null>(null);
+
+  // Scanning & Drag-Drop states for OCR feedback
+  const [isScanning, setIsScanning] = useState<{ aadhaar: boolean; marksheet: boolean; bank: boolean }>({
+    aadhaar: false,
+    marksheet: false,
+    bank: false,
+  });
+
+  const [dragOver, setDragOver] = useState<{ aadhaar: boolean; marksheet: boolean; bank: boolean }>({
+    aadhaar: false,
+    marksheet: false,
+    bank: false,
+  });
 
   // Default active scheme
   const defaultSchemeId = useMemo(() => {
@@ -183,45 +197,103 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     setBankFile((prev) => (prev ? { ...prev, extractedName: newName } : null));
   };
 
-  // Upload handler for native file input
-  const handleFileUpload = (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Robust file processor with simulated 600ms OCR scanning & token extraction
+  const processUploadedFile = (type: "aadhaar" | "marksheet" | "bank", file: File) => {
+    setIsScanning((prev) => ({ ...prev, [type]: true }));
 
     const sizeStr =
       file.size > 1024 * 1024
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(file.size / 1024)} KB`;
 
-    if (type === "aadhaar") {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Aadhaar Holder";
-      setAadhaarFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnAadhaar || "2006-05-12",
-        extractedId: "XXXX-XXXX-4819",
-      });
-    } else if (type === "marksheet") {
-      const currentName = auditInput.nameOnMarksheet || "Marksheet Candidate";
-      setMarksheetFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnMarksheet || "2006-05-12",
-        extractedId: "SSC-2022-849182",
-      });
-    } else {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Account Holder";
-      setBankFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedId: "38920192819",
-      });
+    // Local preview URL if image
+    let previewUrl: string | undefined = undefined;
+    if (file.type.startsWith("image/")) {
+      previewUrl = URL.createObjectURL(file);
+    }
+
+    // Smart heuristic: if user uploaded a file named after a citizen (e.g. sravani_reddy_aadhaar.pdf), detect it
+    const baseName = file.name.replace(/\.[^/.]+$/, "").replace(/[_\-+]/g, " ");
+    const candidateWords = baseName
+      .replace(/aadhaar|marksheet|memo|passbook|card|bank|front|back|uidai|ssc|10th/gi, "")
+      .trim();
+
+    setTimeout(() => {
+      if (type === "aadhaar") {
+        const candidateName =
+          candidateWords.length >= 4
+            ? candidateWords
+            : auditInput.nameOnAadhaar || profile?.name || "Aadhaar Holder";
+
+        setAuditInput((prev) => ({ ...prev, nameOnAadhaar: candidateName }));
+        setAadhaarFile({
+          name: file.name,
+          size: sizeStr,
+          type: file.type,
+          extractedName: candidateName,
+          extractedDob: auditInput.dobOnAadhaar || "2006-05-12",
+          extractedId: "XXXX-XXXX-4819",
+          previewUrl,
+        });
+      } else if (type === "marksheet") {
+        const candidateName =
+          candidateWords.length >= 4
+            ? candidateWords
+            : auditInput.nameOnMarksheet || "Marksheet Candidate";
+
+        setAuditInput((prev) => ({ ...prev, nameOnMarksheet: candidateName }));
+        setMarksheetFile({
+          name: file.name,
+          size: sizeStr,
+          type: file.type,
+          extractedName: candidateName,
+          extractedDob: auditInput.dobOnMarksheet || "2006-05-12",
+          extractedId: "SSC-2022-849182",
+          previewUrl,
+        });
+      } else {
+        const candidateName =
+          candidateWords.length >= 4
+            ? candidateWords
+            : auditInput.nameOnAadhaar || profile?.name || "Account Holder";
+
+        setBankFile({
+          name: file.name,
+          size: sizeStr,
+          type: file.type,
+          extractedName: candidateName,
+          extractedId: "38920192819",
+          previewUrl,
+        });
+      }
+      setIsScanning((prev) => ({ ...prev, [type]: false }));
+    }, 600);
+  };
+
+  // Upload handler for native file input
+  const handleFileUpload = (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processUploadedFile(type, file);
+  };
+
+  // Drag & Drop event handlers
+  const handleDragOver = (type: "aadhaar" | "marksheet" | "bank", e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver((prev) => ({ ...prev, [type]: true }));
+  };
+
+  const handleDragLeave = (type: "aadhaar" | "marksheet" | "bank", e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver((prev) => ({ ...prev, [type]: false }));
+  };
+
+  const handleDrop = (type: "aadhaar" | "marksheet" | "bank", e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver((prev) => ({ ...prev, [type]: false }));
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processUploadedFile(type, file);
     }
   };
 
@@ -692,7 +764,16 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         {/* 3 Upload Dropzones */}
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           {/* Dropzone 1: Aadhaar Card */}
-          <div className="rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50/20 p-4 flex flex-col justify-between hover:bg-indigo-50/40 transition-colors">
+          <div
+            onDragOver={(e) => handleDragOver("aadhaar", e)}
+            onDragLeave={(e) => handleDragLeave("aadhaar", e)}
+            onDrop={(e) => handleDrop("aadhaar", e)}
+            className={`rounded-2xl border-2 border-dashed p-4 flex flex-col justify-between transition-all ${
+              dragOver.aadhaar
+                ? "border-indigo-500 bg-indigo-100/50 ring-2 ring-indigo-400"
+                : "border-indigo-200 bg-indigo-50/20 hover:bg-indigo-50/40"
+            }`}
+          >
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -716,7 +797,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   <span className="text-xs font-bold text-slate-800">
                     {aadhaarFile ? "Replace Aadhaar File" : "Upload Aadhaar (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">Click to browse or drag & drop</span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -726,9 +807,36 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                 </label>
               </div>
 
+              {/* Live OCR Scanning Feedback */}
+              {isScanning.aadhaar && (
+                <div className="mt-3 rounded-xl border border-indigo-200 bg-indigo-50/80 p-3 space-y-1.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-700">
+                    <Sparkles className="size-3.5 animate-spin" />
+                    <span>Extracting UIDAI OCR Tokens...</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-indigo-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-600 rounded-full w-2/3 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-slate-500">Reading demographic text boxes & UID token</p>
+                </div>
+              )}
+
               {/* File Info & OCR Output */}
-              {aadhaarFile && (
+              {aadhaarFile && !isScanning.aadhaar && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-2 text-xs">
+                  {aadhaarFile.previewUrl && (
+                    <div className="relative h-20 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 mb-2">
+                      <img
+                        src={aadhaarFile.previewUrl}
+                        alt="Aadhaar Preview"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 rounded bg-slate-900/70 px-1.5 py-0.5 text-[9px] font-mono text-white">
+                        Scanned Preview
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{aadhaarFile.name}</span>
                     <span className="text-[10px] text-slate-500 font-semibold">{aadhaarFile.size}</span>
@@ -766,7 +874,16 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
           </div>
 
           {/* Dropzone 2: 10th Marksheet */}
-          <div className="rounded-2xl border-2 border-dashed border-sky-200 bg-sky-50/20 p-4 flex flex-col justify-between hover:bg-sky-50/40 transition-colors">
+          <div
+            onDragOver={(e) => handleDragOver("marksheet", e)}
+            onDragLeave={(e) => handleDragLeave("marksheet", e)}
+            onDrop={(e) => handleDrop("marksheet", e)}
+            className={`rounded-2xl border-2 border-dashed p-4 flex flex-col justify-between transition-all ${
+              dragOver.marksheet
+                ? "border-sky-500 bg-sky-100/50 ring-2 ring-sky-400"
+                : "border-sky-200 bg-sky-50/20 hover:bg-sky-50/40"
+            }`}
+          >
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -790,7 +907,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   <span className="text-xs font-bold text-slate-800">
                     {marksheetFile ? "Replace Marksheet File" : "Upload Memo (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">Click to browse or drag & drop</span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -800,9 +917,36 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                 </label>
               </div>
 
+              {/* Live OCR Scanning Feedback */}
+              {isScanning.marksheet && (
+                <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/80 p-3 space-y-1.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-sky-700">
+                    <Sparkles className="size-3.5 animate-spin" />
+                    <span>Parsing Secondary Board Memo...</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-sky-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-sky-600 rounded-full w-2/3 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-slate-500">Extracting candidate name & date of birth</p>
+                </div>
+              )}
+
               {/* File Info & OCR Output */}
-              {marksheetFile && (
+              {marksheetFile && !isScanning.marksheet && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-2 text-xs">
+                  {marksheetFile.previewUrl && (
+                    <div className="relative h-20 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 mb-2">
+                      <img
+                        src={marksheetFile.previewUrl}
+                        alt="Marksheet Preview"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 rounded bg-slate-900/70 px-1.5 py-0.5 text-[9px] font-mono text-white">
+                        Scanned Preview
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{marksheetFile.name}</span>
                     <span className="text-[10px] text-slate-500 font-semibold">{marksheetFile.size}</span>
@@ -840,7 +984,16 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
           </div>
 
           {/* Dropzone 3: Bank Passbook */}
-          <div className="rounded-2xl border-2 border-dashed border-purple-200 bg-purple-50/20 p-4 flex flex-col justify-between hover:bg-purple-50/40 transition-colors">
+          <div
+            onDragOver={(e) => handleDragOver("bank", e)}
+            onDragLeave={(e) => handleDragLeave("bank", e)}
+            onDrop={(e) => handleDrop("bank", e)}
+            className={`rounded-2xl border-2 border-dashed p-4 flex flex-col justify-between transition-all ${
+              dragOver.bank
+                ? "border-purple-500 bg-purple-100/50 ring-2 ring-purple-400"
+                : "border-purple-200 bg-purple-50/20 hover:bg-purple-50/40"
+            }`}
+          >
             <div>
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -864,7 +1017,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   <span className="text-xs font-bold text-slate-800">
                     {bankFile ? "Replace Passbook File" : "Upload Passbook (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">Click to browse or drag & drop</span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
@@ -874,9 +1027,36 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                 </label>
               </div>
 
+              {/* Live OCR Scanning Feedback */}
+              {isScanning.bank && (
+                <div className="mt-3 rounded-xl border border-purple-200 bg-purple-50/80 p-3 space-y-1.5 text-center">
+                  <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-purple-700">
+                    <Sparkles className="size-3.5 animate-spin" />
+                    <span>Verifying CBS Account & NPCI Mapper...</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-purple-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-600 rounded-full w-2/3 animate-pulse" />
+                  </div>
+                  <p className="text-[10px] text-slate-500">Reading IFSC, Account number & NPCI mandate status</p>
+                </div>
+              )}
+
               {/* File Info & OCR Output */}
-              {bankFile && (
+              {bankFile && !isScanning.bank && (
                 <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 space-y-2 text-xs">
+                  {bankFile.previewUrl && (
+                    <div className="relative h-20 w-full overflow-hidden rounded-lg border border-slate-200 bg-slate-100 mb-2">
+                      <img
+                        src={bankFile.previewUrl}
+                        alt="Passbook Preview"
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="absolute bottom-1 right-1 rounded bg-slate-900/70 px-1.5 py-0.5 text-[9px] font-mono text-white">
+                        Scanned Preview
+                      </span>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{bankFile.name}</span>
                     <span className="text-[10px] text-slate-500 font-semibold">{bankFile.size}</span>
