@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
 import { DEMO_PERSONAS, DemoPersona, BLANK_CITIZEN_PROFILE, BLANK_CITIZEN_AUDIT } from "@/data/demoPersonas";
-import { getAllStates, getDistrictsForState } from "@/data/indiaLocations";
+import { getAllStates, getDistrictsForState, getVillagesAndTownsForDistrict } from "@/data/indiaLocations";
 import { DocumentAuditInput } from "@/lib/audit/documentAuditor";
 import {
   ShieldCheck,
@@ -51,6 +51,10 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
 
   const allStates = useMemo(() => getAllStates(), []);
   const currentDistricts = useMemo(() => getDistrictsForState(profile.state), [profile.state]);
+  const currentVillagesAndTowns = useMemo(
+    () => getVillagesAndTownsForDistrict(profile.state, profile.district || ""),
+    [profile.state, profile.district]
+  );
 
   const eligibleCount = evaluationResults.filter((r) => r.decision === "ALLOW").length;
   const isTamilNadu = profile.state === "Tamil Nadu";
@@ -351,10 +355,13 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
                   const newState = e.target.value;
                   const newDistricts = getDistrictsForState(newState);
                   const nextDistrict = newDistricts.length > 0 ? newDistricts[0] : "";
+                  const newVillages = getVillagesAndTownsForDistrict(newState, nextDistrict);
+                  const nextVillage = newVillages.length > 0 ? newVillages[0] : "";
                   onProfileChange({
                     ...profile,
                     state: newState,
                     district: nextDistrict,
+                    villageOrTown: nextVillage,
                     tnCommunity: newState === "Tamil Nadu" ? "MBC" : "None",
                     apCommunity: newState === "Andhra Pradesh" ? "BC-A" : "None"
                   });
@@ -380,7 +387,16 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
               </div>
               <select
                 value={profile.district || ""}
-                onChange={(e) => onProfileChange({ ...profile, district: e.target.value })}
+                onChange={(e) => {
+                  const nextDistrict = e.target.value;
+                  const newVillages = getVillagesAndTownsForDistrict(profile.state, nextDistrict);
+                  const nextVillage = newVillages.length > 0 ? newVillages[0] : "";
+                  onProfileChange({
+                    ...profile,
+                    district: nextDistrict,
+                    villageOrTown: nextVillage
+                  });
+                }}
                 className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
               >
                 {currentDistricts.length === 0 ? (
@@ -401,18 +417,38 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Village / Town / Ward Secretariat
-              </label>
-              <input
-                type="text"
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Village / Town
+                </label>
+                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  {currentVillagesAndTowns.length} Villages & Towns in {profile.district ? profile.district.split(" ")[0] : "District"}
+                </span>
+              </div>
+              <select
                 value={profile.villageOrTown || ""}
                 onChange={(e) => onProfileChange({ ...profile, villageOrTown: e.target.value })}
-                placeholder="e.g. Satyanarayanapuram, Ward 14, Anna Nagar"
-                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
-              />
+                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
+              >
+                {currentVillagesAndTowns.length === 0 ? (
+                  <option value="">No villages or towns available</option>
+                ) : (
+                  <>
+                    {!currentVillagesAndTowns.includes(profile.villageOrTown || "") && (
+                      <option value={profile.villageOrTown || ""}>
+                        {profile.villageOrTown || "-- Select Village / Town --"}
+                      </option>
+                    )}
+                    {currentVillagesAndTowns.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
               <span className="text-[10px] text-slate-500 mt-1 block">
-                Localizes your nearest Grama / Ward Sachivalayam & MeeSeva centers
+                Select your native village or town to localize your nearest citizen service centers
               </span>
             </div>
 
