@@ -16,6 +16,7 @@ export interface UserProfile {
   // 2. Domicile & Location
   state: string;
   district?: string;
+  villageOrTown?: string;
   residenceYearsInState: number;
   isStudyingInHomeState: boolean;
 
@@ -98,13 +99,17 @@ export const DEFAULT_USER_PROFILE: UserProfile = {
  * Deterministic Cedar-style Policy Evaluator
  * Evaluates comprehensive real-world Indian Civic Service & Scholarship criteria against declarative policy rules.
  */
-export function evaluateCedarPolicies(rawProfile: Partial<UserProfile>): CedarEvaluationResult[] {
+export function evaluateCedarPolicies(
+  rawProfile: Partial<UserProfile>,
+  customSchemes?: SchemeOrService[]
+): CedarEvaluationResult[] {
   const profile: UserProfile = { ...DEFAULT_USER_PROFILE, ...rawProfile };
   const results: CedarEvaluationResult[] = [];
   const heldDocs = new Set(profile.heldDocuments || []);
 
-  // Filter active schemes: Central schemes are constant; State schemes match candidate's state
-  const candidateSchemes = SCHEMES_DATABASE.filter((s) => {
+  // Filter active schemes from dynamic or baseline source
+  const schemeSource = customSchemes && customSchemes.length > 0 ? customSchemes : SCHEMES_DATABASE;
+  const candidateSchemes = schemeSource.filter((s) => {
     if (s.level === "Central") return true;
     if (!s.applicableStates || s.applicableStates.length === 0) return true;
     if (profile.state === "National" || !profile.state) return true;

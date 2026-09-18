@@ -20,49 +20,61 @@ export const Header: React.FC<HeaderProps> = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur-md shadow-xs">
-      {/* Tricolor Subtle Top Bar */}
-      <div className="h-1 w-full bg-linear-to-r from-amber-500 via-white to-emerald-600" />
+    <header className="sticky top-0 z-40 border-b border-[#EAE2D5] bg-[#FDFBF7] shadow-xs">
+      {/* 1. National Tricolor Strip */}
+      <div className="gov-tricolor-bar" />
 
-      {/* Top Hackathon & Cloud Stack Bar */}
-      <div className="bg-slate-900 px-4 py-1.5 text-xs text-slate-200">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center gap-2 font-medium text-[11px]">
-            <span className="inline-flex items-center gap-1 rounded bg-amber-500/20 text-amber-300 px-2 py-0.5 font-bold uppercase tracking-wider border border-amber-500/30">
-              <Award className="size-3 text-amber-400" /> AWS × WeMakeDevs
-            </span>
-            <span className="text-slate-400 hidden sm:inline">Bharat Builds Tour • "First Commit" Hackathon 2026</span>
+      {/* 2. Top Sovereign Micro-Bar */}
+      <div className="bg-[#FAF4EB] border-b border-[#EADFCF] py-1.5 px-4 sm:px-8 text-[11px] text-[#6B5740] flex flex-wrap items-center justify-between gap-2 font-medium">
+        <div className="flex items-center gap-3">
+          <span className="font-bold text-[#3B2D1D] flex items-center gap-1.5 font-serif tracking-wide">
+            <span>🏛️</span>
+            <span>भारत सरकार • GOVERNMENT OF INDIA</span>
+          </span>
+          <span className="text-[#D8C7B0] hidden sm:inline">|</span>
+          <span className="text-[#7A6650] hidden sm:inline font-sans text-[11px]">
+            National Statutory Scholarship & Entitlement Access Portal
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100/70 border border-amber-300/80 text-[10px] font-bold text-amber-900 uppercase tracking-wider">
+            <Award className="size-3 text-amber-700" />
+            <span>AWS × WeMakeDevs "First Commit"</span>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <button
-              onClick={onOpenArchitecture}
-              className="flex items-center gap-1.5 font-mono text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer text-[11px]"
-            >
-              <Cpu className="size-3.5" />
-              <span>Inspect AWS Stack (Bedrock + Cedar + SAM)</span>
-            </button>
-          </div>
+          <button
+            onClick={onOpenArchitecture}
+            className="flex items-center gap-1.5 font-sans text-slate-700 hover:text-amber-900 bg-white hover:bg-amber-50 px-2.5 py-0.5 rounded-full border border-[#DACBB8] text-[11px] font-bold shadow-2xs cursor-pointer transition-colors"
+          >
+            <Cpu className="size-3 text-amber-700" />
+            <span>Inspect AWS Stack</span>
+          </button>
         </div>
       </div>
 
-      {/* Main Navbar */}
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6">
-        {/* Logo & Identity */}
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl bg-linear-to-br from-indigo-700 to-slate-900 text-white font-black text-lg shadow-sm ring-2 ring-indigo-600/20">
-            JS
+      {/* 3. Main Luxury Editorial Branding Bar */}
+      <div className="mx-auto flex max-w-7xl flex-col md:flex-row items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+        {/* Brand with Editorial Serif Typography */}
+        <div className="flex items-center gap-3.5">
+          {/* Circular Gold Seal Motif */}
+          <div className="size-11 sm:size-12 rounded-full gold-seal-badge flex items-center justify-center p-2 text-center shrink-0">
+            <div className="text-[10px] font-black text-[#644616] uppercase font-display leading-tight">
+              JS<br />
+              <span className="text-[7px] tracking-tighter">AI</span>
+            </div>
           </div>
+
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">
-                JanSetu <span className="text-indigo-600">AI</span>
+              <h1 className="text-xl sm:text-2xl font-black text-[#0B1B4F] tracking-tight flex items-center gap-2 font-serif">
+                JanSetu <span className="font-cormorant italic font-normal text-amber-800 text-2xl sm:text-3xl">AI</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 font-sans tracking-widest uppercase">
+                  जनसेतु
+                </span>
               </h1>
-              <span className="rounded-md border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-extrabold text-indigo-700 uppercase tracking-wide">
-                National Citizen Engine
-              </span>
             </div>
-            <p className="text-xs text-slate-500 hidden md:block">
-              Unified Civic Eligibility, Document Pre-Flight Audit & Last-Mile Navigator
+            <p className="text-xs text-slate-600 font-medium">
+              Civic Access Flight Deck & Pre-Flight Audit System • Bharat Builds Tour
             </p>
           </div>
         </div>

@@ -25,36 +25,71 @@ import {
 
 interface OfflineNavigatorTabProps {
   userState?: string;
+  userDistrict?: string;
+  userVillage?: string;
+  targetSchemeId?: string;
 }
 
 export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
   userState = "Andhra Pradesh",
+  userDistrict,
+  userVillage,
+  targetSchemeId,
 }) => {
-  const [selectedState, setSelectedState] = useState<string>(userState || "Andhra Pradesh");
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("All");
+  const isKnownState = REAL_OFFLINE_CENTERS.some((c) => c.state === userState);
+  const [selectedState, setSelectedState] = useState<string>(isKnownState ? userState : "All States");
+  
+  // Resolve district matching user profile
+  const matchedDistrict = useMemo(() => {
+    if (!userDistrict) return "All";
+    const available = REAL_OFFLINE_CENTERS.filter((c) => c.state === userState).map((c) => c.district);
+    const found = available.find(
+      (d) => d.toLowerCase().includes(userDistrict.toLowerCase()) || userDistrict.toLowerCase().includes(d.toLowerCase())
+    );
+    return found || "All";
+  }, [userState, userDistrict]);
+
+  const [selectedDistrict, setSelectedDistrict] = useState<string>(matchedDistrict);
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Fee Calculator selected service
   const initialService = useMemo(() => {
+    if (targetSchemeId) {
+      if (targetSchemeId.startsWith("AP_")) return "AP_MeeSeva_REV01";
+      if (targetSchemeId.startsWith("TN_")) return "TN_eSevai_REV104";
+      if (targetSchemeId.includes("PostMatric")) return "PostMatric_ST_Submission";
+    }
     if (userState === "Andhra Pradesh") return "AP_MeeSeva_REV01";
     if (userState === "Tamil Nadu") return "TN_eSevai_REV104";
     return REAL_SERVICE_FEE_SCHEDULE[0].serviceId;
-  }, [userState]);
+  }, [userState, targetSchemeId]);
 
   const [selectedServiceId, setSelectedServiceId] = useState<string>(initialService);
 
-  // Sync state when prop changes
+  // Sync state when props change
   React.useEffect(() => {
     if (userState) {
-      setSelectedState(userState);
-      if (userState === "Andhra Pradesh") {
+      const isKnown = REAL_OFFLINE_CENTERS.some((c) => c.state === userState);
+      setSelectedState(isKnown ? userState : "All States");
+      if (userDistrict) {
+        const available = REAL_OFFLINE_CENTERS.filter((c) => c.state === userState).map((c) => c.district);
+        const found = available.find(
+          (d) => d.toLowerCase().includes(userDistrict.toLowerCase()) || userDistrict.toLowerCase().includes(d.toLowerCase())
+        );
+        setSelectedDistrict(found || "All");
+      }
+      if (targetSchemeId) {
+        if (targetSchemeId.startsWith("AP_")) setSelectedServiceId("AP_MeeSeva_REV01");
+        else if (targetSchemeId.startsWith("TN_")) setSelectedServiceId("TN_eSevai_REV104");
+        else if (targetSchemeId.includes("PostMatric")) setSelectedServiceId("PostMatric_ST_Submission");
+      } else if (userState === "Andhra Pradesh") {
         setSelectedServiceId("AP_MeeSeva_REV01");
       } else if (userState === "Tamil Nadu") {
         setSelectedServiceId("TN_eSevai_REV104");
       }
     }
-  }, [userState]);
+  }, [userState, userDistrict, targetSchemeId]);
 
   const selectedFeeDetail = useMemo(() => {
     return (

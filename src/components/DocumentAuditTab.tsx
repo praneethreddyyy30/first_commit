@@ -45,6 +45,7 @@ interface DocumentAuditTabProps {
   profile?: UserProfile;
   onSelectScheme?: (schemeId: string) => void;
   onProfileChange?: (newProfile: UserProfile) => void;
+  onAuditInputChange?: (newAudit: DocumentAuditInput) => void;
   onNavigateToEligibility?: () => void;
   onNavigateToRoadmap?: (schemeId: string) => void;
 }
@@ -65,6 +66,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
   profile,
   onSelectScheme,
   onProfileChange,
+  onAuditInputChange,
   onNavigateToEligibility,
   onNavigateToRoadmap,
 }) => {

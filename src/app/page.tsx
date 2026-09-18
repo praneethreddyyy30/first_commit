@@ -5,11 +5,8 @@ import { Header } from "@/components/Header";
 import { AwsArchitectureModal } from "@/components/AwsArchitectureModal";
 import { CitizenProfilePage } from "@/components/CitizenProfilePage";
 import { EligibilityTab } from "@/components/EligibilityTab";
-import { DocumentAuditTab } from "@/components/DocumentAuditTab";
-import { PrerequisiteRoadmapTab } from "@/components/PrerequisiteRoadmapTab";
-import { OfflineNavigatorTab } from "@/components/OfflineNavigatorTab";
-import { AiCopilotTab } from "@/components/AiCopilotTab";
-import { ApplicationDossierTab } from "@/components/ApplicationDossierTab";
+import { SchemeWorkspace } from "@/components/SchemeWorkspace";
+import { SCHEMES_DATABASE, SchemeOrService } from "@/data/schemes";
 import {
   DEMO_PERSONAS,
   DemoPersona,
@@ -27,16 +24,29 @@ import {
   Bot,
   FileBadge,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  CheckCircle2
 } from "lucide-react";
 
 export default function Home() {
   const [isArchitectureOpen, setIsArchitectureOpen] = useState<boolean>(false);
 
-  // Tab State: Opens to Official Citizen Profile by default
+  // Tab State: 3 High-Level Stages (Matching Hand-drawn Spec)
+  // Stage 1: "profile", Stage 2: "schemes", Stage 3: "workspace" (Focused on chosen scheme)
   const [activeTab, setActiveTab] = useState<
-    "profile" | "schemes" | "audit" | "roadmap" | "offline" | "copilot" | "dossier"
+    "profile" | "schemes" | "workspace"
   >("profile");
+
+  // Scheme Workspace Active Sub-Tab (Docs, Roadmap, Seva Centers, AI Copilot, Dossier)
+  const [workspaceSubTab, setWorkspaceSubTab] = useState<
+    "docs" | "roadmap" | "offline" | "copilot" | "dossier"
+  >("docs");
+
+  // Dynamic Scheme Pool (Baseline + API Setu Dynamic Ingestion)
+  const [schemes, setSchemes] = useState<SchemeOrService[]>(SCHEMES_DATABASE);
+  const [isSyncingSchemes, setIsSyncingSchemes] = useState<boolean>(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<string>("Today (Live API Setu Gateway)");
+  const [syncBannerMessage, setSyncBannerMessage] = useState<string | null>(null);
 
   // Master Citizen Profile (Initial: Kavitha Selvam, Tamil Nadu)
   const [profile, setProfile] = useState<UserProfile>(DEMO_PERSONAS[0].profile);
@@ -82,10 +92,40 @@ export default function Home() {
     }
   };
 
-  // Live Cedar policy evaluation
+  // Sync with API Setu & National Public Data Exchange
+  const handleSyncWithApiSetu = async () => {
+    setIsSyncingSchemes(true);
+    try {
+      const res = await fetch("/api/schemes/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ forceRefresh: true })
+      });
+      const data = await res.json();
+      if (data.success && data.allSchemes) {
+        setSchemes(data.allSchemes);
+        setLastSyncedAt("Just now");
+        if (data.newlyAddedSchemes && data.newlyAddedSchemes.length > 0) {
+          const names = data.newlyAddedSchemes.map((s: { shortCode: string }) => s.shortCode).join(", ");
+          setSyncBannerMessage(`🎉 Successfully ingested newly gazetted scheme(s) from API Setu: ${names}`);
+        } else {
+          setSyncBannerMessage("✅ All schemes verified up-to-date with API Setu.");
+        }
+        setTimeout(() => setSyncBannerMessage(null), 8000);
+      }
+    } catch (e) {
+      console.error("Failed to sync schemes:", e);
+      setSyncBannerMessage("⚠️ Could not reach API Setu gateway. Kept baseline policies active.");
+      setTimeout(() => setSyncBannerMessage(null), 5000);
+    } finally {
+      setIsSyncingSchemes(false);
+    }
+  };
+
+  // Live Cedar policy evaluation over active dynamic scheme pool
   const evaluationResults = useMemo(() => {
-    return evaluateCedarPolicies(profile);
-  }, [profile]);
+    return evaluateCedarPolicies(profile, schemes);
+  }, [profile, schemes]);
 
   // Live document audit
   const auditResult = useMemo(() => {
@@ -112,19 +152,20 @@ export default function Home() {
     setActiveTab("profile");
   };
 
-  const handleNavigateToDocuments = (schemeId?: string) => {
-    if (schemeId) {
-      setTargetSchemeId(schemeId);
-    }
-    setActiveTab("audit");
+  // User hand-drawn workflow: Selecting one scheme opens the Scheme Workspace
+  const handleOpenSchemeWorkspace = (
+    schemeId: string,
+    subTab: "docs" | "roadmap" | "offline" | "copilot" | "dossier" = "docs"
+  ) => {
+    setTargetSchemeId(schemeId);
+    setWorkspaceSubTab(subTab);
+    setActiveTab("workspace");
   };
 
-  const handleNavigateToRoadmap = (schemeId?: string) => {
-    if (schemeId) {
-      setTargetSchemeId(schemeId);
-    }
-    setActiveTab("roadmap");
-  };
+  // Find active scheme title & short code for Step 3 badge
+  const activeScheme = useMemo(() => {
+    return schemes.find((s) => s.id === targetSchemeId) || schemes[0];
+  }, [schemes, targetSchemeId]);
 
   return (
     <div className="min-h-screen bg-slate-50/70 text-slate-900 flex flex-col font-sans">
@@ -198,44 +239,36 @@ export default function Home() {
 
             <ChevronRight className="size-4 text-slate-300 shrink-0" />
 
-            {/* Step 3: Document & Name Check */}
+            {/* Step 3: Dedicated Scheme Workspace (User Hand-drawn Workflow) */}
             <button
-              onClick={() => setActiveTab("audit")}
+              onClick={() => setActiveTab("workspace")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                activeTab === "audit"
+                activeTab === "workspace"
                   ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
               <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
-                activeTab === "audit" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
+                activeTab === "workspace" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
               }`}>
                 3
               </span>
-              <span>Document Audit</span>
-              {auditResult.npciStatus !== "SEEDED" ? (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900 border border-amber-300">
-                  Action Needed
-                </span>
-              ) : (
-                <span className="hidden sm:inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
-                  Pre-Flight
-                </span>
-              )}
+              <span>Scheme Workspace</span>
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                activeTab === "workspace" ? "bg-white/25 text-white" : "bg-amber-100 text-amber-900 border border-amber-300"
+              }`}>
+                {activeScheme.shortCode}
+              </span>
             </button>
           </div>
 
-          {/* Secondary Tools & Utilities */}
+          {/* Secondary Tools & Utilities (Direct Shortcuts into Scheme Workspace) */}
           <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xs scrollbar-none">
             {/* Tool 1: Roadmap */}
             <button
-              onClick={() => setActiveTab("roadmap")}
-              title="Official Government Steps & Application Roadmap"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === "roadmap"
-                  ? "bg-slate-900 text-white shadow-xs font-bold"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
+              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "roadmap")}
+              title="Official Government Steps & Application Roadmap for active scheme"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
             >
               <GitFork className="size-3.5" />
               <span>Roadmap</span>
@@ -243,13 +276,9 @@ export default function Home() {
 
             {/* Tool 2: Seva Centers */}
             <button
-              onClick={() => setActiveTab("offline")}
+              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "offline")}
               title="Nearby Citizen Service Centers and Statutory Fee Schedules"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === "offline"
-                  ? "bg-slate-900 text-white shadow-xs font-bold"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
             >
               <Building className="size-3.5" />
               <span>Seva Centers</span>
@@ -257,13 +286,9 @@ export default function Home() {
 
             {/* Tool 3: Bedrock AI Copilot */}
             <button
-              onClick={() => setActiveTab("copilot")}
+              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "copilot")}
               title="Ask AI Civic Copilot about any scheme rule or criteria"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === "copilot"
-                  ? "bg-slate-900 text-white shadow-xs font-bold"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
             >
               <Bot className="size-3.5 text-indigo-600" />
               <span>AI Copilot</span>
@@ -274,13 +299,9 @@ export default function Home() {
 
             {/* Tool 4: Dossier */}
             <button
-              onClick={() => setActiveTab("dossier")}
+              onClick={() => handleOpenSchemeWorkspace(targetSchemeId, "dossier")}
               title="Download consolidated PDF dossier for this citizen"
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
-                activeTab === "dossier"
-                  ? "bg-slate-900 text-white shadow-xs font-bold"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-              }`}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-all cursor-pointer"
             >
               <FileBadge className="size-3.5" />
               <span>Dossier</span>
@@ -288,9 +309,25 @@ export default function Home() {
           </div>
         </div>
 
+        {/* API Setu Live Ingestion Toast Notification */}
+        {syncBannerMessage && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs text-emerald-900 shadow-sm animate-in fade-in slide-in-from-top duration-300">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+              <span className="font-semibold">{syncBannerMessage}</span>
+            </div>
+            <button
+              onClick={() => setSyncBannerMessage(null)}
+              className="rounded-lg px-2 py-0.5 text-emerald-700 hover:bg-emerald-100 font-mono font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* Tab Views */}
         <div>
-          {/* View 1: Citizen Master Profile Page (Default Entry Point) */}
+          {/* View 1: Citizen Master Profile Page (Step 1) */}
           {activeTab === "profile" && (
             <CitizenProfilePage
               profile={profile}
@@ -298,63 +335,40 @@ export default function Home() {
               onProfileChange={handleProfileChange}
               onAuditInputChange={(newAudit) => setAuditInput(newAudit)}
               onNavigateToSchemes={() => setActiveTab("schemes")}
-              onNavigateToAudit={() => setActiveTab("audit")}
+              onNavigateToAudit={() => handleOpenSchemeWorkspace(targetSchemeId, "docs")}
             />
           )}
 
-          {/* View 2: Scheme Discovery & Eligibility Dashboard */}
+          {/* View 2: Scheme Discovery & Eligibility Dashboard (Step 2) */}
           {activeTab === "schemes" && (
             <EligibilityTab
               profile={profile}
               evaluationResults={evaluationResults}
               onProfileChange={handleProfileChange}
               onNavigateToProfile={() => setActiveTab("profile")}
-              onNavigateToDocuments={handleNavigateToDocuments}
-              onNavigateToRoadmap={handleNavigateToRoadmap}
+              onNavigateToDocuments={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
+              onNavigateToRoadmap={(schemeId) => handleOpenSchemeWorkspace(schemeId, "roadmap")}
+              onSelectScheme={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
+              totalSchemesCount={schemes.length}
+              lastSyncedAt={lastSyncedAt}
+              onSyncWithApiSetu={handleSyncWithApiSetu}
+              isSyncing={isSyncingSchemes}
             />
           )}
 
-          {/* View 3: Scheme-Centric Pre-Flight Document Audit */}
-          {activeTab === "audit" && (
-            <DocumentAuditTab
-              initialInput={auditInput}
-              selectedSchemeId={targetSchemeId}
-              profile={profile}
+          {/* View 3: Dedicated Scheme Workspace (Step 3 - Matching Hand-drawn Diagram) */}
+          {activeTab === "workspace" && (
+            <SchemeWorkspace
+              schemeId={targetSchemeId}
+              allSchemes={schemes}
               onSelectScheme={(id) => setTargetSchemeId(id)}
-              onProfileChange={handleProfileChange}
-              onNavigateToEligibility={() => setActiveTab("schemes")}
-              onNavigateToRoadmap={handleNavigateToRoadmap}
-            />
-          )}
-
-          {/* View 4: Scheme-Centric Application Roadmap */}
-          {activeTab === "roadmap" && (
-            <PrerequisiteRoadmapTab
-              initialSchemeId={targetSchemeId}
-              userHeldDocuments={profile.heldDocuments || []}
-              userState={profile.state}
-              onSelectScheme={(id) => setTargetSchemeId(id)}
-            />
-          )}
-
-          {/* View 5: Offline Seva Centers & Anti-Extortion Fee Calculator */}
-          {activeTab === "offline" && (
-            <OfflineNavigatorTab
-              userState={profile.state}
-            />
-          )}
-
-          {/* View 6: Bedrock AI Copilot */}
-          {activeTab === "copilot" && (
-            <AiCopilotTab />
-          )}
-
-          {/* View 7: Application Dossier */}
-          {activeTab === "dossier" && (
-            <ApplicationDossierTab
+              onBackToSchemes={() => setActiveTab("schemes")}
               profile={profile}
               evaluationResults={evaluationResults}
-              auditResult={auditResult}
+              auditInput={auditInput}
+              onAuditInputChange={(newAudit) => setAuditInput(newAudit)}
+              onProfileChange={handleProfileChange}
+              initialSubTab={workspaceSubTab}
             />
           )}
         </div>
