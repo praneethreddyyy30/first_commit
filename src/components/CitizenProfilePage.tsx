@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
 import { DEMO_PERSONAS, DemoPersona, BLANK_CITIZEN_PROFILE, BLANK_CITIZEN_AUDIT } from "@/data/demoPersonas";
+import { getAllStates, getDistrictsForState, getVillagesAndTownsForDistrict } from "@/data/indiaLocations";
 import { DocumentAuditInput } from "@/lib/audit/documentAuditor";
 import {
   ShieldCheck,
@@ -47,6 +48,13 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
   onNavigateToAudit,
 }) => {
   const [saveToast, setSaveToast] = useState(false);
+
+  const allStates = useMemo(() => getAllStates(), []);
+  const currentDistricts = useMemo(() => getDistrictsForState(profile.state), [profile.state]);
+  const currentVillagesAndTowns = useMemo(
+    () => getVillagesAndTownsForDistrict(profile.state, profile.district || ""),
+    [profile.state, profile.district]
+  );
 
   const eligibleCount = evaluationResults.filter((r) => r.decision === "ALLOW").length;
   const isTamilNadu = profile.state === "Tamil Nadu";
@@ -333,83 +341,114 @@ export const CitizenProfilePage: React.FC<CitizenProfilePageProps> = ({
 
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                State Domicile
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  State Domicile
+                </label>
+                <span className="text-[10px] font-semibold text-[#0B1B4F] bg-[#FAF0C8] px-1.5 py-0.5 rounded border border-[#DFB738]/30">
+                  {allStates.length} States / UTs
+                </span>
+              </div>
               <select
                 value={profile.state}
                 onChange={(e) => {
                   const newState = e.target.value;
+                  const newDistricts = getDistrictsForState(newState);
+                  const nextDistrict = newDistricts.length > 0 ? newDistricts[0] : "";
+                  const newVillages = getVillagesAndTownsForDistrict(newState, nextDistrict);
+                  const nextVillage = newVillages.length > 0 ? newVillages[0] : "";
                   onProfileChange({
                     ...profile,
                     state: newState,
+                    district: nextDistrict,
+                    villageOrTown: nextVillage,
                     tnCommunity: newState === "Tamil Nadu" ? "MBC" : "None",
                     apCommunity: newState === "Andhra Pradesh" ? "BC-A" : "None"
                   });
                 }}
                 className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
               >
-                <option value="Tamil Nadu">Tamil Nadu (Flagship Schemes Active)</option>
-                <option value="Andhra Pradesh">Andhra Pradesh (Flagship Schemes Active)</option>
-                <option value="Odisha">Odisha</option>
-                <option value="Madhya Pradesh">Madhya Pradesh</option>
-                <option value="Jharkhand">Jharkhand</option>
-                <option value="West Bengal">West Bengal</option>
-                <option value="Telangana">Telangana</option>
-                <option value="Karnataka">Karnataka</option>
-                <option value="Uttar Pradesh">Uttar Pradesh</option>
-                <option value="Central">All-India / Central Only</option>
+                {allStates.map((st) => (
+                  <option key={st} value={st}>
+                    {st} {st === "Tamil Nadu" || st === "Andhra Pradesh" ? "(Flagship Active)" : ""}
+                  </option>
+                ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                District / Region
-              </label>
-              <input
-                type="text"
-                value={profile.district}
-                onChange={(e) => onProfileChange({ ...profile, district: e.target.value })}
-                placeholder="e.g. NTR / Krishna, Visakhapatnam, Chennai"
-                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
-              />
-              {/* Quick District selection pills */}
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {(isAndhraPradesh
-                  ? ["NTR / Krishna", "Visakhapatnam", "Guntur", "Kurnool"]
-                  : isTamilNadu
-                  ? ["Chennai", "Madurai", "Coimbatore", "Salem"]
-                  : ["NTR / Krishna", "Chennai", "Khordha"]
-                ).map((d) => (
-                  <button
-                    key={d}
-                    type="button"
-                    onClick={() => onProfileChange({ ...profile, district: d })}
-                    className={`rounded-md px-1.5 py-0.5 text-[10px] font-semibold transition-all cursor-pointer ${
-                      profile.district === d
-                        ? "bg-[#0B1B4F] text-[#F5E29F]"
-                        : "bg-[#FAF4EB] text-[#854D0E] hover:bg-amber-100 border border-[#E8DCCB]"
-                    }`}
-                  >
-                    {d}
-                  </button>
-                ))}
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  District / Region
+                </label>
+                <span className="text-[10px] font-semibold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  {currentDistricts.length} Districts in {profile.state}
+                </span>
               </div>
+              <select
+                value={profile.district || ""}
+                onChange={(e) => {
+                  const nextDistrict = e.target.value;
+                  const newVillages = getVillagesAndTownsForDistrict(profile.state, nextDistrict);
+                  const nextVillage = newVillages.length > 0 ? newVillages[0] : "";
+                  onProfileChange({
+                    ...profile,
+                    district: nextDistrict,
+                    villageOrTown: nextVillage
+                  });
+                }}
+                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
+              >
+                {currentDistricts.length === 0 ? (
+                  <option value="">No districts listed</option>
+                ) : (
+                  <>
+                    {!currentDistricts.includes(profile.district || "") && (
+                      <option value="">-- Select District --</option>
+                    )}
+                    {currentDistricts.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Village / Town / Ward Secretariat
-              </label>
-              <input
-                type="text"
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Village / Town
+                </label>
+                <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                  {currentVillagesAndTowns.length} Villages & Towns in {profile.district ? profile.district.split(" ")[0] : "District"}
+                </span>
+              </div>
+              <select
                 value={profile.villageOrTown || ""}
                 onChange={(e) => onProfileChange({ ...profile, villageOrTown: e.target.value })}
-                placeholder="e.g. Satyanarayanapuram, Ward 14, Anna Nagar"
-                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
-              />
+                className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:ring-2 focus:ring-[#DFB738]/20 focus:outline-hidden"
+              >
+                {currentVillagesAndTowns.length === 0 ? (
+                  <option value="">No villages or towns available</option>
+                ) : (
+                  <>
+                    {!currentVillagesAndTowns.includes(profile.villageOrTown || "") && (
+                      <option value={profile.villageOrTown || ""}>
+                        {profile.villageOrTown || "-- Select Village / Town --"}
+                      </option>
+                    )}
+                    {currentVillagesAndTowns.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </>
+                )}
+              </select>
               <span className="text-[10px] text-slate-500 mt-1 block">
-                Localizes your nearest Grama / Ward Sachivalayam & MeeSeva centers
+                Select your native village or town to localize your nearest citizen service centers
               </span>
             </div>
 

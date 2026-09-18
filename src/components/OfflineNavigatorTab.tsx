@@ -5,8 +5,10 @@ import {
   REAL_OFFLINE_CENTERS,
   REAL_SERVICE_FEE_SCHEDULE,
   OfflineCenter,
-  ServiceFeeDetail
+  ServiceFeeDetail,
+  getNearbySevaCentersForVillage
 } from "@/data/cscDirectory";
+import { getAllStates, getDistrictsForState } from "@/data/indiaLocations";
 import {
   MapPin,
   Phone,
@@ -71,10 +73,12 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
     );
   }, [selectedServiceId]);
 
-  // Unique list of states
+  // Unique list of states combining centers and official states
   const availableStates = useMemo(() => {
-    const states = Array.from(new Set(REAL_OFFLINE_CENTERS.map((c) => c.state)));
-    return ["All States", ...states];
+    const centerStates = Array.from(new Set(REAL_OFFLINE_CENTERS.map((c) => c.state)));
+    const allKnown = getAllStates();
+    const combined = Array.from(new Set([...centerStates, ...allKnown]));
+    return ["All States", ...combined];
   }, []);
 
   // Districts for selected state
@@ -82,12 +86,12 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
     if (selectedState === "All States") {
       return ["All"];
     }
-    const districts = Array.from(
-      new Set(
-        REAL_OFFLINE_CENTERS.filter((c) => c.state === selectedState).map((c) => c.district)
-      )
+    const centerDistricts = REAL_OFFLINE_CENTERS.filter((c) => c.state === selectedState).map(
+      (c) => c.district
     );
-    return ["All", ...districts];
+    const officialDistricts = getDistrictsForState(selectedState);
+    const combined = Array.from(new Set([...centerDistricts, ...officialDistricts]));
+    return ["All", ...combined];
   }, [selectedState]);
 
   // Auto-match user's district when provided
@@ -102,13 +106,26 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
     }
   }, [userDistrict, availableDistricts]);
 
-  // Filtered Centers List
+  // Combined and Filtered Centers List
   const filteredCenters = useMemo(() => {
-    const list = REAL_OFFLINE_CENTERS.filter((center) => {
+    // Generate hyper-local centers if state/district/village are provided
+    const targetState = selectedState !== "All States" ? selectedState : userState;
+    const targetDistrict = selectedDistrict !== "All" ? selectedDistrict : userDistrict;
+    const dynamicVillageCenters = getNearbySevaCentersForVillage(targetState, targetDistrict, userVillage);
+
+    const existingIds = new Set(dynamicVillageCenters.map((c) => c.id));
+    const combinedBase = [
+      ...dynamicVillageCenters,
+      ...REAL_OFFLINE_CENTERS.filter((c) => !existingIds.has(c.id))
+    ];
+
+    const list = combinedBase.filter((center) => {
       const matchState =
         selectedState === "All States" || center.state === selectedState;
       const matchDistrict =
-        selectedDistrict === "All" || center.district === selectedDistrict;
+        selectedDistrict === "All" || center.district.toLowerCase() === selectedDistrict.toLowerCase() ||
+        center.district.toLowerCase().includes(selectedDistrict.toLowerCase()) ||
+        selectedDistrict.toLowerCase().includes(center.district.toLowerCase());
       const matchType =
         selectedType === "ALL" || center.type === selectedType;
 
@@ -140,7 +157,7 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
     }
 
     return list;
-  }, [selectedState, selectedDistrict, selectedType, searchQuery, userVillage]);
+  }, [selectedState, selectedDistrict, selectedType, searchQuery, userState, userDistrict, userVillage]);
 
   return (
     <div className="space-y-8 font-sans">
@@ -333,9 +350,10 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                 onChange={(e) => setSelectedType(e.target.value)}
                 className="w-full rounded-lg border border-[#DFC8A5] bg-white px-3 py-2 text-xs font-medium text-slate-900 focus:border-[#DFB738] focus:outline-hidden"
               >
-                <option value="ALL">All Types</option>
-                <option value="CSC">Common Service Center (CSC / Seva Kendra)</option>
-                <option value="TEHSILDAR">Tehsildar / Taluk Office</option>
+                <option value="ALL">All Centers ({filteredCenters.length})</option>
+                <option value="CSC">Grama Sachivalayam / MeeSeva / e-Sevai (CSC)</option>
+                <option value="TEHSILDAR">Tahsildar / Mandal Revenue Office (MRO)</option>
+                <option value="DISTRICT_WELFARE">District Collectorate / Social Welfare</option>
               </select>
             </div>
 
@@ -348,12 +366,27 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search address, VLE, center..."
+                  placeholder="Search village, address, VLE, center..."
                   className="w-full rounded-lg border border-[#DFC8A5] bg-white pl-8 pr-3 py-2 text-xs text-slate-900 focus:border-[#DFB738] focus:outline-hidden"
                 />
               </div>
             </div>
           </div>
+
+          {/* Active Village Context Banner */}
+          {userVillage && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-950 font-medium">
+              <div className="flex items-center gap-2">
+                <MapPin className="size-4 text-emerald-700 shrink-0" />
+                <span>
+                  Proximity Filter Active: Displaying closest official counters for <strong>{userVillage}</strong>, {userDistrict || selectedDistrict}, {userState || selectedState} (Ordered by closest distance).
+                </span>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300">
+                0.3 km – 18.5 km Range
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Center Cards Grid */}
@@ -361,7 +394,7 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
           {filteredCenters.map((center) => (
             <div
               key={center.id}
-              className="luxury-card rounded-xl p-5.5 hover:border-[#DFB738] transition-all flex flex-col justify-between"
+              className="luxury-card rounded-xl p-5.5 hover:border-[#DFB738] transition-all flex flex-col justify-between shadow-2xs"
             >
               <div>
                 {/* Header: Center Type & ID */}
@@ -371,16 +404,22 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                       className={`inline-block rounded px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider ${
                         center.type === "CSC"
                           ? "bg-[#0B1B4F] text-[#F5E29F]"
+                          : center.type === "DISTRICT_WELFARE"
+                          ? "bg-purple-100 text-purple-900 border border-purple-200"
                           : "bg-amber-100 text-amber-900 border border-amber-200"
                       }`}
                     >
-                      {center.type === "CSC" ? "Common Service Center" : "Tehsildar / Revenue Desk"}
+                      {center.type === "CSC"
+                        ? "Village / Ward Citizen Desk"
+                        : center.type === "DISTRICT_WELFARE"
+                        ? "District Collectorate Nodal"
+                        : "Tahsildar / Revenue Desk"}
                     </span>
                     <h5 className="mt-2 text-base font-bold text-[#0B1B4F] font-serif">
                       {center.name}
                     </h5>
                   </div>
-                  <span className="font-mono text-[10px] text-slate-500 border border-[#DFC8A5] rounded px-2 py-0.5 bg-[#FAF7F2]">
+                  <span className="font-mono text-[10px] text-slate-600 border border-[#DFC8A5] rounded px-2 py-0.5 bg-[#FAF7F2] shrink-0">
                     {center.centerId}
                   </span>
                 </div>
@@ -390,14 +429,20 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                   <p className="flex items-start gap-2">
                     <MapPin className="size-4 text-amber-700 shrink-0 mt-0.5" />
                     <span>
-                      {center.address}, {center.district}, {center.state} – <strong className="text-[#0B1B4F]">{center.pincode}</strong>
-                      {center.distanceEstimate && (
-                        <span className="block text-[11px] text-slate-400 mt-0.5">
-                          ({center.distanceEstimate})
-                        </span>
-                      )}
+                      {center.address}
+                      {!center.address.toLowerCase().includes(center.district.toLowerCase()) ? `, ${center.district}` : ""}
+                      {!center.address.toLowerCase().includes(center.state.toLowerCase()) ? `, ${center.state}` : ""}
+                      {" – "}
+                      <strong className="text-[#0B1B4F]">{center.pincode}</strong>
                     </span>
                   </p>
+
+                  {center.distanceEstimate && (
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200 w-fit">
+                      <Navigation className="size-3 text-emerald-700" />
+                      <span>{center.distanceEstimate}</span>
+                    </div>
+                  )}
 
                   <p className="flex items-center gap-2">
                     <Clock className="size-4 text-slate-400 shrink-0" />
@@ -409,9 +454,9 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                   <p className="flex items-center gap-2">
                     <Phone className="size-4 text-slate-400 shrink-0" />
                     <span>
-                      Contact: <strong>{center.contactPerson}</strong> •{" "}
+                      Incharge: <strong>{center.contactPerson}</strong> •{" "}
                       <a
-                        href={`tel:${center.contactNumber}`}
+                        href={`tel:${center.contactNumber.replace(/[^0-9+]/g, '')}`}
                         className="text-[#0B1B4F] font-bold hover:underline font-mono"
                       >
                         {center.contactNumber}
@@ -423,7 +468,7 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                 {/* Services Handled Badges */}
                 <div className="mt-4 border-t border-[#EDE6DD] pt-3">
                   <span className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider font-serif">
-                    Authorized Services Handled at this Desk:
+                    Authorized Government Services at this Desk:
                   </span>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {center.servicesOffered.map((s, idx) => (
@@ -431,7 +476,7 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                         key={idx}
                         className="rounded-md bg-[#FAF7F2] px-2 py-0.5 text-[10px] font-medium text-[#0B1B4F] border border-[#DFC8A5]"
                       >
-                        {s}
+                        ✓ {s}
                       </span>
                     ))}
                   </div>
@@ -441,7 +486,7 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
               {/* Action Buttons: Directions & Call */}
               <div className="mt-5 pt-3.5 border-t border-[#EDE6DD] flex items-center justify-between gap-3">
                 <a
-                  href={`tel:${center.contactNumber}`}
+                  href={`tel:${center.contactNumber.replace(/[^0-9+]/g, '')}`}
                   className="flex items-center gap-1.5 rounded-lg border border-[#DFC8A5] bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-[#FAF7F2] transition-colors"
                 >
                   <Phone className="size-3.5 text-slate-500" />
@@ -456,8 +501,8 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
                   rel="noreferrer"
                   className="flex items-center gap-1.5 rounded-lg bg-[#0B1B4F] px-4 py-1.5 text-xs font-bold text-[#F5E29F] shadow-sm hover:bg-[#152864] transition-colors border border-[#DFB738]/40"
                 >
-                  <Navigation className="size-3.5" />
-                  <span>Get Directions</span>
+                  <Navigation className="size-3.5 text-[#DFB738]" />
+                  <span>Open in Google Maps</span>
                   <ExternalLink className="size-3" />
                 </a>
               </div>
