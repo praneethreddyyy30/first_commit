@@ -67,33 +67,29 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Citizen Profile Switcher & Actions */}
+        {/* Right Actions: Clean Sample Tester & Status */}
         <div className="flex items-center gap-3">
-          {/* Client Selector Dropdown */}
+          {/* Subtle Sample Profile Tester (Discreetly tucked away) */}
           <div className="relative">
             <button
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/80 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:border-slate-300 transition-all cursor-pointer shadow-xs"
+              className="flex items-center gap-2 rounded-xl border border-slate-200 bg-linear-to-r from-indigo-50/70 to-purple-50/50 px-3 py-1.5 text-xs font-semibold text-indigo-900 hover:border-indigo-300 hover:bg-indigo-50 transition-all cursor-pointer shadow-xs"
             >
-              <div className="flex size-6 items-center justify-center rounded-lg bg-indigo-700 text-[11px] font-black text-white shadow-2xs">
-                {activeProfileName ? activeProfileName.charAt(0) : "U"}
-              </div>
-              <div className="text-left hidden sm:block">
-                <p className="text-[11px] font-bold text-slate-900 leading-tight">
-                  {activeProfileName || "Select Client Profile"}
-                </p>
-                <p className="text-[9px] text-slate-500 leading-tight">Active Citizen Master</p>
-              </div>
-              <ChevronDown className="size-3.5 text-slate-400" />
+              <Sparkles className="size-3.5 text-indigo-600" />
+              <span className="hidden sm:inline">Try Sample:</span>
+              <span className="font-bold text-slate-800 truncate max-w-[130px]">
+                {activeProfileName || "Select Profile"}
+              </span>
+              <ChevronDown className="size-3 text-slate-400" />
             </button>
 
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-80 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl z-50 space-y-1.5 animate-in fade-in zoom-in-95 duration-100">
+              <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2.5 shadow-xl z-50 space-y-1 animate-in fade-in zoom-in-95 duration-100">
                 <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Select Citizen Profile (9 Real-World Cases):
+                  Quick Testing Profiles (Real Cases):
                 </div>
 
-                <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
                   {DEMO_PERSONAS.map((p) => {
                     const isSelected = activeProfileName === p.profile.name;
                     return (
@@ -103,38 +99,35 @@ export const Header: React.FC<HeaderProps> = ({
                           onSelectPersona(p);
                           setDropdownOpen(false);
                         }}
-                        className={`w-full flex items-center justify-between rounded-xl px-3 py-2 text-left text-xs font-medium transition-all cursor-pointer ${
+                        className={`w-full flex items-center justify-between rounded-xl px-2.5 py-1.5 text-left text-xs font-medium transition-all cursor-pointer ${
                           isSelected
-                            ? "bg-indigo-50 text-indigo-950 font-bold border border-indigo-200"
-                            : "text-slate-700 hover:bg-slate-50 border border-transparent"
+                            ? "bg-indigo-600 text-white font-bold"
+                            : "text-slate-700 hover:bg-slate-50"
                         }`}
                       >
                         <div className="truncate pr-2">
-                          <p className="font-bold text-slate-900 truncate">{p.name}</p>
-                          <p className="text-[10px] text-slate-500">
-                            <span className={`font-semibold ${p.state === "Andhra Pradesh" ? "text-teal-700" : p.state === "Tamil Nadu" ? "text-purple-700" : "text-blue-700"}`}>
-                              {p.state}
-                            </span>
-                            {" "}• {p.categoryTag}
+                          <p className={`font-bold truncate ${isSelected ? "text-white" : "text-slate-900"}`}>{p.name}</p>
+                          <p className={`text-[10px] ${isSelected ? "text-indigo-100" : "text-slate-500"}`}>
+                            {p.state} • {p.categoryTag}
                           </p>
                         </div>
-                        {isSelected && <Check className="size-4 text-indigo-600 shrink-0" />}
+                        {isSelected && <Check className="size-3.5 text-white shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
 
                 {onResetToBlank && (
-                  <div className="border-t border-slate-100 pt-1.5">
+                  <div className="border-t border-slate-100 pt-1.5 mt-1">
                     <button
                       onClick={() => {
                         onResetToBlank();
                         setDropdownOpen(false);
                       }}
-                      className="w-full flex items-center gap-2 rounded-xl px-3 py-2 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-colors cursor-pointer"
                     >
-                      <PlusCircle className="size-4" />
-                      <span>+ Register New / Blank Citizen</span>
+                      <PlusCircle className="size-3.5" />
+                      <span>Start with Blank Profile</span>
                     </button>
                   </div>
                 )}

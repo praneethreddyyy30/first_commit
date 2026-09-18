@@ -26,7 +26,8 @@ import {
   Building,
   Bot,
   FileBadge,
-  Sparkles
+  Sparkles,
+  ChevronRight
 } from "lucide-react";
 
 export default function Home() {
@@ -137,22 +138,27 @@ export default function Home() {
 
       {/* Main Container */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6">
-        {/* Single-Tier Clean Navigation Tabs Bar */}
-        <div className="mb-6 overflow-x-auto scrollbar-none">
-          <div className="flex w-max min-w-full space-x-1.5 rounded-2xl border border-slate-200 bg-white p-1.5 shadow-xs">
-            {/* Tab 1: Citizen Master Profile */}
+        {/* 3-Step Guided Journey & Utility Bar */}
+        <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+          {/* Primary 3-Step Stepper */}
+          <div className="flex items-center gap-1.5 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xs scrollbar-none">
+            {/* Step 1: Profile */}
             <button
               onClick={() => setActiveTab("profile")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "profile"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <User className="size-4" />
-              <span>1. Citizen Profile</span>
+              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
+                activeTab === "profile" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
+              }`}>
+                1
+              </span>
+              <span>Your Profile</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                className={`hidden sm:inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${
                   activeTab === "profile"
                     ? "bg-white/25 text-white"
                     : "bg-slate-100 text-slate-700"
@@ -162,99 +168,122 @@ export default function Home() {
               </span>
             </button>
 
-            {/* Tab 2: Scheme Discovery & Eligibility */}
+            <ChevronRight className="size-4 text-slate-300 shrink-0" />
+
+            {/* Step 2: Matched Schemes */}
             <button
               onClick={() => setActiveTab("schemes")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "schemes"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <ShieldCheck className="size-4" />
-              <span>2. Schemes & Eligibility</span>
+              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
+                activeTab === "schemes" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
+              }`}>
+                2
+              </span>
+              <span>Matched Schemes</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                className={`rounded-full px-2 py-0.5 text-[10px] font-black ${
                   activeTab === "schemes"
-                    ? "bg-white/25 text-white"
-                    : "bg-indigo-100 text-indigo-800"
+                    ? "bg-emerald-400 text-slate-950"
+                    : "bg-emerald-100 text-emerald-800"
                 }`}
               >
-                {eligibleCount} Eligible
+                {eligibleCount} Qualified
               </span>
             </button>
 
-            {/* Tab 3: Document Upload & Name Matcher */}
+            <ChevronRight className="size-4 text-slate-300 shrink-0" />
+
+            {/* Step 3: Document & Name Check */}
             <button
               onClick={() => setActiveTab("audit")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
                 activeTab === "audit"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-linear-to-r from-indigo-600 to-violet-600 text-white shadow-sm shadow-indigo-200"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <FileCheck2 className="size-4" />
-              <span>3. Document Upload & Matcher</span>
-              {auditResult.npciStatus !== "SEEDED" && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-                  Attention
+              <span className={`flex size-5 items-center justify-center rounded-full text-[11px] font-black ${
+                activeTab === "audit" ? "bg-white text-indigo-700" : "bg-slate-100 text-slate-700"
+              }`}>
+                3
+              </span>
+              <span>Document Audit</span>
+              {auditResult.npciStatus !== "SEEDED" ? (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-900 border border-amber-300">
+                  Action Needed
+                </span>
+              ) : (
+                <span className="hidden sm:inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-700">
+                  Pre-Flight
                 </span>
               )}
             </button>
+          </div>
 
-            {/* Tab 4: Application Roadmap */}
+          {/* Secondary Tools & Utilities */}
+          <div className="flex items-center gap-1 overflow-x-auto rounded-2xl border border-slate-200/90 bg-white p-1.5 shadow-xs scrollbar-none">
+            {/* Tool 1: Roadmap */}
             <button
               onClick={() => setActiveTab("roadmap")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              title="Official Government Steps & Application Roadmap"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "roadmap"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-slate-900 text-white shadow-xs font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <GitFork className="size-4" />
-              <span>4. Application Roadmap</span>
+              <GitFork className="size-3.5" />
+              <span>Roadmap</span>
             </button>
 
-            {/* Tab 5: Seva Centers & Fees */}
+            {/* Tool 2: Seva Centers */}
             <button
               onClick={() => setActiveTab("offline")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              title="Nearby Citizen Service Centers and Statutory Fee Schedules"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "offline"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-slate-900 text-white shadow-xs font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <Building className="size-4" />
-              <span>5. Seva Centers & Fees</span>
+              <Building className="size-3.5" />
+              <span>Seva Centers</span>
             </button>
 
-            {/* Tab 6: Bedrock AI Copilot */}
+            {/* Tool 3: Bedrock AI Copilot */}
             <button
               onClick={() => setActiveTab("copilot")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              title="Ask AI Civic Copilot about any scheme rule or criteria"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "copilot"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-slate-900 text-white shadow-xs font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <Bot className="size-4" />
-              <span>6. AI Civic Assistant</span>
-              <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700 border border-indigo-200">
-                <Sparkles className="size-2.5" /> Voice
+              <Bot className="size-3.5 text-indigo-600" />
+              <span>AI Copilot</span>
+              <span className="flex items-center gap-0.5 rounded-full bg-indigo-50 px-1.5 py-0.5 text-[9px] font-bold text-indigo-700">
+                <Sparkles className="size-2" /> Voice
               </span>
             </button>
 
-            {/* Tab 7: Application Dossier */}
+            {/* Tool 4: Dossier */}
             <button
               onClick={() => setActiveTab("dossier")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              title="Download consolidated PDF dossier for this citizen"
+              className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "dossier"
-                  ? "bg-indigo-600 text-white shadow-xs font-bold"
+                  ? "bg-slate-900 text-white shadow-xs font-bold"
                   : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
               }`}
             >
-              <FileBadge className="size-4" />
-              <span>7. Download Dossier</span>
+              <FileBadge className="size-3.5" />
+              <span>Dossier</span>
             </button>
           </div>
         </div>

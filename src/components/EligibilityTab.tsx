@@ -130,15 +130,18 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Top Citizen Profile Summary Banner */}
-      <div className="rounded-3xl border border-slate-200 bg-linear-to-r from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-md">
+      {/* Top Citizen Profile Celebration Banner (Step 2 Header) */}
+      <div className="rounded-3xl border border-indigo-200 bg-linear-to-r from-indigo-600 via-indigo-700 to-violet-700 p-6 text-white shadow-md shadow-indigo-100">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-indigo-600 px-2.5 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                {profile.state} Citizen Profile
+              <span className="rounded-full bg-emerald-400 text-slate-950 px-3 py-0.5 text-[11px] font-black uppercase tracking-wider shadow-xs">
+                🎉 {eligibleResults.length} Schemes Matched
               </span>
-              <span className="rounded-md bg-white/15 text-slate-200 px-2 py-0.5 text-[10px] font-bold">
+              <span className="rounded-full bg-white/20 text-white px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-xs">
+                {profile.state} Citizen
+              </span>
+              <span className="rounded-full bg-white/20 text-white px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-xs">
                 {isTamilNadu && profile.tnCommunity !== "None"
                   ? `${profile.category} (${profile.tnCommunity})`
                   : isAndhraPradesh && profile.apCommunity !== "None"
@@ -146,22 +149,22 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   : profile.category}
               </span>
               {profile.studiedInGovtSchool6To12 && (
-                <span className="rounded-md bg-blue-500/20 text-blue-300 border border-blue-500/30 px-2 py-0.5 text-[10px] font-bold">
+                <span className="rounded-full bg-sky-400/25 text-sky-200 border border-sky-300/40 px-2 py-0.5 text-[10px] font-bold">
                   Govt School 6-12
                 </span>
               )}
               {profile.isFirstGraduateInFamily && (
-                <span className="rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2 py-0.5 text-[10px] font-bold">
+                <span className="rounded-full bg-amber-400/25 text-amber-200 border border-amber-300/40 px-2 py-0.5 text-[10px] font-bold">
                   1st Graduate
                 </span>
               )}
             </div>
 
-            <h2 className="text-xl font-black text-white sm:text-2xl">
-              {profile.name || "Client"} • Scheme Eligibility Discovery
+            <h2 className="text-xl font-black text-white sm:text-2xl tracking-tight">
+              {profile.name || "Client"} • Qualified Welfare & Scholarship Schemes
             </h2>
 
-            <p className="text-xs text-slate-300 flex flex-wrap items-center gap-2">
+            <p className="text-xs text-indigo-100 flex flex-wrap items-center gap-2">
               <span>Annual Income: <strong className="text-white">₹{profile.annualFamilyIncome.toLocaleString("en-IN")}</strong></span>
               <span>•</span>
               <span>Education: <strong className="text-white">{profile.educationLevel}</strong> ({profile.admissionQuota})</span>
@@ -172,14 +175,24 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {onNavigateToDocuments && eligibleResults.length > 0 && (
+              <button
+                onClick={() => onNavigateToDocuments(eligibleResults[0].scheme.id)}
+                className="flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-xs font-black text-indigo-700 shadow-md hover:bg-indigo-50 transition-all cursor-pointer hover:scale-[1.02]"
+              >
+                <FileCheck2 className="size-4 text-indigo-600" />
+                <span>Verify Documents (Step 3) ➔</span>
+              </button>
+            )}
+
             {onNavigateToProfile && (
               <button
                 onClick={onNavigateToProfile}
-                className="flex items-center gap-1.5 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-xs font-bold text-white hover:bg-white/20 transition-all cursor-pointer"
+                className="flex items-center gap-1.5 rounded-2xl border border-white/30 bg-white/10 px-3.5 py-3 text-xs font-bold text-white hover:bg-white/20 transition-all cursor-pointer backdrop-blur-xs"
               >
                 <User className="size-3.5" />
-                <span>Edit Profile Particulars</span>
+                <span>Edit Profile</span>
               </button>
             )}
           </div>
