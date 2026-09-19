@@ -57,6 +57,12 @@ interface UploadedFileInfo {
   extractedName: string;
   extractedDob?: string;
   extractedId?: string;
+  confidenceScore?: number;
+  isValidDocument?: boolean;
+  issuingAuthority?: string;
+  validationWarnings?: string[];
+  securityMarkers?: string[];
+  isExtracting?: boolean;
 }
 
 export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
@@ -219,8 +225,8 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     if (onAuditInputChange) onAuditInputChange(updated);
   };
 
-  // Upload handler for native file input
-  const handleFileUpload = (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload handler for native file input with live OCR extraction
+  const handleFileUpload = async (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -229,36 +235,96 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(file.size / 1024)} KB`;
 
-    if (type === "aadhaar") {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Aadhaar Holder";
-      setAadhaarFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnAadhaar || "2006-05-12",
-        extractedId: "XXXX-XXXX-4819",
-      });
-    } else if (type === "marksheet") {
-      const currentName = auditInput.nameOnMarksheet || "Marksheet Candidate";
-      setMarksheetFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnMarksheet || "2006-05-12",
-        extractedId: "SSC-2022-849182",
-      });
-    } else {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Account Holder";
-      setBankFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedId: "38920192819",
-      });
-    }
+    // 1. Set immediate extracting state
+    const initialLoadingState: UploadedFileInfo = {
+      name: file.name,
+      size: sizeStr,
+      type: file.type,
+      extractedName: "Scanning document text with OCR...",
+      isExtracting: true,
+      isValidDocument: true,
+    };
+
+    if (type === "aadhaar") setAadhaarFile(initialLoadingState);
+    else if (type === "marksheet") setMarksheetFile(initialLoadingState);
+    else setBankFile(initialLoadingState);
+
+    // 2. Read file as base64 and call backend OCR / Vision extraction API
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      try {
+        const response = await fetch("/api/audit/extract-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data,
+            expectedType: type,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success && data.result) {
+          const res = data.result;
+          const updatedFileInfo: UploadedFileInfo = {
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: res.extractedName || "Unknown",
+            extractedDob: res.extractedDob,
+            extractedId: res.extractedIdNumber,
+            confidenceScore: res.confidenceScore,
+            isValidDocument: res.isValidDocument,
+            issuingAuthority: res.issuingAuthority,
+            validationWarnings: res.validationWarnings,
+            securityMarkers: res.securityMarkersDetected,
+            isExtracting: false,
+          };
+
+          if (type === "aadhaar") {
+            setAadhaarFile(updatedFileInfo);
+            if (res.isValidDocument && res.extractedName) {
+              const updated = {
+                ...auditInput,
+                nameOnAadhaar: res.extractedName,
+                dobOnAadhaar: res.extractedDob || auditInput.dobOnAadhaar,
+              };
+              setAuditInput(updated);
+              if (onAuditInputChange) onAuditInputChange(updated);
+            }
+          } else if (type === "marksheet") {
+            setMarksheetFile(updatedFileInfo);
+            if (res.isValidDocument && res.extractedName) {
+              const updated = {
+                ...auditInput,
+                nameOnMarksheet: res.extractedName,
+                dobOnMarksheet: res.extractedDob || auditInput.dobOnMarksheet,
+              };
+              setAuditInput(updated);
+              if (onAuditInputChange) onAuditInputChange(updated);
+            }
+          } else {
+            setBankFile(updatedFileInfo);
+            if (res.isValidDocument && res.extractedName) {
+              const updated = {
+                ...auditInput,
+                bankName: res.issuingAuthority || auditInput.bankName,
+              };
+              setAuditInput(updated);
+              if (onAuditInputChange) onAuditInputChange(updated);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Document extraction error:", err);
+        if (type === "aadhaar") setAadhaarFile((prev) => prev ? { ...prev, isExtracting: false } : null);
+        else if (type === "marksheet") setMarksheetFile((prev) => prev ? { ...prev, isExtracting: false } : null);
+        else setBankFile((prev) => prev ? { ...prev, isExtracting: false } : null);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Quick Preset Test Scenarios
@@ -803,26 +869,50 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                     <span className="text-[10px] text-slate-500 font-semibold">{aadhaarFile.size}</span>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
-                      Extracted Name on Aadhaar:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={auditInput.nameOnAadhaar || ""}
-                        onChange={(e) => handleUpdateAadhaarName(e.target.value)}
-                        className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
-                        placeholder="e.g. Kavitha Selvam"
-                      />
-                      <Edit3 className="absolute right-2 top-2 size-3 text-slate-400 pointer-events-none" />
+                  {aadhaarFile.isExtracting ? (
+                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-amber-900 text-xs">
+                      <RefreshCw className="size-3.5 animate-spin text-amber-700" />
+                      <span>Scanning document & extracting identity markers...</span>
                     </div>
-                  </div>
+                  ) : aadhaarFile.isValidDocument === false ? (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium space-y-1">
+                      <div className="flex items-center gap-1 font-bold">
+                        <AlertTriangle className="size-3.5 text-rose-600" />
+                        <span>Document Mismatch / Unrecognized</span>
+                      </div>
+                      <p>{aadhaarFile.validationWarnings?.[0] || "File does not match standard Indian government Aadhaar card layout."}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
+                          Extracted Name on Aadhaar:
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={auditInput.nameOnAadhaar || ""}
+                            onChange={(e) => handleUpdateAadhaarName(e.target.value)}
+                            className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
+                            placeholder="e.g. Kavitha Selvam"
+                          />
+                          <Edit3 className="absolute right-2 top-2 size-3 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                    <span>DOB: <strong>{auditInput.dobOnAadhaar || "2006-05-12"}</strong></span>
-                    <span>No: <strong>XXXX-4819</strong></span>
-                  </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>DOB: <strong>{auditInput.dobOnAadhaar || "2006-05-12"}</strong></span>
+                        <span>No: <strong>{aadhaarFile.extractedId || "XXXX-4819"}</strong></span>
+                      </div>
+
+                      {aadhaarFile.confidenceScore && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-emerald-800 font-medium">
+                          <span>OCR Confidence: <strong>{aadhaarFile.confidenceScore}%</strong></span>
+                          <span className="text-slate-500 font-mono text-[9px]">{aadhaarFile.issuingAuthority || "UIDAI"}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -877,26 +967,50 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                     <span className="text-[10px] text-slate-500 font-semibold">{marksheetFile.size}</span>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
-                      Extracted Name on Marksheet:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={auditInput.nameOnMarksheet || ""}
-                        onChange={(e) => handleUpdateMarksheetName(e.target.value)}
-                        className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
-                        placeholder="e.g. Kavitha S"
-                      />
-                      <Edit3 className="absolute right-2 top-2 size-3 text-slate-400 pointer-events-none" />
+                  {marksheetFile.isExtracting ? (
+                    <div className="flex items-center gap-2 p-2 bg-sky-50 rounded-lg text-sky-900 text-xs">
+                      <RefreshCw className="size-3.5 animate-spin text-sky-700" />
+                      <span>Scanning marksheet & extracting student record...</span>
                     </div>
-                  </div>
+                  ) : marksheetFile.isValidDocument === false ? (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium space-y-1">
+                      <div className="flex items-center gap-1 font-bold">
+                        <AlertTriangle className="size-3.5 text-rose-600" />
+                        <span>Document Mismatch / Unrecognized</span>
+                      </div>
+                      <p>{marksheetFile.validationWarnings?.[0] || "File does not match an Indian secondary examination marksheet."}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
+                          Extracted Name on Marksheet:
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={auditInput.nameOnMarksheet || ""}
+                            onChange={(e) => handleUpdateMarksheetName(e.target.value)}
+                            className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
+                            placeholder="e.g. Kavitha S"
+                          />
+                          <Edit3 className="absolute right-2 top-2 size-3 text-slate-400 pointer-events-none" />
+                        </div>
+                      </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                    <span>DOB: <strong>{auditInput.dobOnMarksheet || "2006-05-12"}</strong></span>
-                    <span>Roll: <strong>SSC-2022-849</strong></span>
-                  </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>DOB: <strong>{auditInput.dobOnMarksheet || "2006-05-12"}</strong></span>
+                        <span>Roll: <strong>{marksheetFile.extractedId || "SSC-2022-849"}</strong></span>
+                      </div>
+
+                      {marksheetFile.confidenceScore && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-sky-800 font-medium">
+                          <span>OCR Confidence: <strong>{marksheetFile.confidenceScore}%</strong></span>
+                          <span className="text-slate-500 font-mono text-[9px]">{marksheetFile.issuingAuthority || "State Board"}</span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -951,49 +1065,74 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                     <span className="text-[10px] text-slate-500 font-semibold">{bankFile.size}</span>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
-                      Account Holder Name:
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={bankFile.extractedName}
-                        onChange={(e) => handleUpdateBankName(e.target.value)}
-                        className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
-                        placeholder="e.g. Kavitha Selvam"
-                      />
-                      <Edit3 className="absolute right-2 top-2 size-3 text-slate-400 pointer-events-none" />
+                  {bankFile.isExtracting ? (
+                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-amber-900 text-xs">
+                      <RefreshCw className="size-3.5 animate-spin text-amber-700" />
+                      <span>Scanning passbook IFSC & Account record...</span>
                     </div>
-                  </div>
+                  ) : bankFile.isValidDocument === false ? (
+                    <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-[11px] font-medium space-y-1">
+                      <div className="flex items-center gap-1 font-bold">
+                        <AlertTriangle className="size-3.5 text-rose-600" />
+                        <span>Document Mismatch / Unrecognized</span>
+                      </div>
+                      <p>{bankFile.validationWarnings?.[0] || "File does not match standard bank passbook layout."}</p>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
+                          Bank Name & Account:
+                        </label>
+                        <input
+                          type="text"
+                          value={auditInput.bankName || ""}
+                          onChange={(e) => {
+                            const updated = { ...auditInput, bankName: e.target.value };
+                            setAuditInput(updated);
+                            if (onAuditInputChange) onAuditInputChange(updated);
+                          }}
+                          className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2]/50 px-2.5 py-1.5 text-xs font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
+                          placeholder="e.g. State Bank of India"
+                        />
+                      </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
-                    <span>A/C: <strong>38920192819</strong></span>
-                    <span>NPCI: <strong className={auditResult.npciStatus === "SEEDED" ? "text-emerald-700" : "text-amber-700"}>{auditResult.npciStatus}</strong></span>
-                  </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+                        <span>A/C: <strong>{bankFile.extractedId || "38920192819"}</strong></span>
+                        <span className="text-emerald-700 font-bold">IFSC Verified</span>
+                      </div>
 
-                  {/* Interactive Bank KYC & NPCI Seeding Controls */}
-                  <div className="pt-2 border-t border-[#EDE6DD] space-y-1.5">
-                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={auditInput.isAadhaarLinkedToBank}
-                        onChange={(e) => handleToggleBankLinked(e.target.checked)}
-                        className="rounded border-[#DFC8A5] text-[#0B1B4F] focus:ring-[#DFB738]"
-                      />
-                      <span>Aadhaar linked to bank (KYC)</span>
-                    </label>
+                      {bankFile.confidenceScore && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-amber-900 font-medium">
+                          <span>OCR Confidence: <strong>{bankFile.confidenceScore}%</strong></span>
+                          <span className="text-slate-500 font-mono text-[9px]">{bankFile.issuingAuthority || "Scheduled Bank"}</span>
+                        </div>
+                      )}
 
-                    <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={auditInput.isNpciSeeded}
-                        onChange={(e) => handleToggleNpciSeeded(e.target.checked)}
-                        className="rounded border-[#DFC8A5] text-[#0B1B4F] focus:ring-[#DFB738]"
-                      />
-                      <span className="font-semibold text-[#0B1B4F]">NPCI DBT Mapper Active (Seeded)</span>
-                    </label>
-                  </div>
+                      {/* Interactive Bank KYC & NPCI Seeding Controls */}
+                      <div className="pt-2 border-t border-[#EDE6DD] space-y-1.5">
+                        <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={auditInput.isAadhaarLinkedToBank}
+                            onChange={(e) => handleToggleBankLinked(e.target.checked)}
+                            className="rounded border-[#DFC8A5] text-[#0B1B4F] focus:ring-[#DFB738]"
+                          />
+                          <span>Aadhaar linked to bank (KYC)</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 text-[11px] text-slate-700 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={auditInput.isNpciSeeded}
+                            onChange={(e) => handleToggleNpciSeeded(e.target.checked)}
+                            className="rounded border-[#DFC8A5] text-[#0B1B4F] focus:ring-[#DFB738]"
+                          />
+                          <span className="font-semibold text-[#0B1B4F]">NPCI DBT Mapper Active (Seeded)</span>
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
