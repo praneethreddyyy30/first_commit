@@ -15,14 +15,27 @@ import {
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import fs from "fs";
 import path from "path";
-import dotenv from "dotenv";
-
-// Load .env.local if present
-if (fs.existsSync(".env.local")) {
-  dotenv.config({ path: ".env.local" });
-} else if (fs.existsSync(".env")) {
-  dotenv.config({ path: ".env" });
+// Native .env parser (Zero external dependencies)
+function loadEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return false;
+  const content = fs.readFileSync(filePath, "utf-8");
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx !== -1) {
+      const key = trimmed.slice(0, eqIdx).trim();
+      let val = trimmed.slice(eqIdx + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      process.env[key] = val;
+    }
+  }
+  return true;
 }
+
+loadEnvFile(".env.local") || loadEnvFile(".env");
 
 const region = process.env.AWS_REGION || "us-east-1";
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;

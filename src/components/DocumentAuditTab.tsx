@@ -36,7 +36,8 @@ import {
   Search,
   Award,
   CheckCircle,
-  Edit3
+  Edit3,
+  Cloud
 } from "lucide-react";
 
 interface DocumentAuditTabProps {
@@ -63,6 +64,9 @@ interface UploadedFileInfo {
   validationWarnings?: string[];
   securityMarkers?: string[];
   isExtracting?: boolean;
+  s3Key?: string;
+  s3StorageTier?: string;
+  s3Uploaded?: boolean;
 }
 
 export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
@@ -375,6 +379,37 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             securityMarkers: res.securityMarkersDetected,
             isExtracting: false,
           };
+
+          // Optional S3 Vault Archival
+          if (res.isValidDocument) {
+            try {
+              const s3Res = await fetch("/api/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  fileName: file.name,
+                  fileType: file.type,
+                  documentType: type,
+                  citizenId: profile?.name || "citizen",
+                }),
+              });
+              const s3Data = await s3Res.json();
+              if (s3Data.success && s3Data.uploadUrl) {
+                if (s3Data.mode === "AWS_S3_PRESIGNED") {
+                  await fetch(s3Data.uploadUrl, {
+                    method: "PUT",
+                    headers: { "Content-Type": file.type },
+                    body: file,
+                  });
+                }
+                updatedFileInfo.s3Key = s3Data.objectKey;
+                updatedFileInfo.s3StorageTier = s3Data.storageTier;
+                updatedFileInfo.s3Uploaded = true;
+              }
+            } catch (s3Err) {
+              console.warn("S3 pre-signed upload skipped:", s3Err);
+            }
+          }
 
           if (type === "aadhaar") {
             setAadhaarFile(updatedFileInfo);
@@ -1014,6 +1049,17 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                           <span className="text-slate-500 font-mono text-[9px]">{aadhaarFile.issuingAuthority || "UIDAI"}</span>
                         </div>
                       )}
+
+                      {aadhaarFile.s3Uploaded && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-amber-900 font-medium border-t border-slate-100">
+                          <span className="flex items-center gap-1 font-semibold text-amber-800">
+                            <Cloud className="size-2.5 text-amber-600" /> S3 Vault Synced
+                          </span>
+                          <span className="text-slate-500 font-mono text-[9px] truncate max-w-[120px]" title={aadhaarFile.s3Key}>
+                            {aadhaarFile.s3Key?.split("/").pop()}
+                          </span>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>
@@ -1124,6 +1170,17 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                         <div className="pt-1 flex items-center justify-between text-[10px] text-sky-800 font-medium">
                           <span>OCR Confidence: <strong>{marksheetFile.confidenceScore}%</strong></span>
                           <span className="text-slate-500 font-mono text-[9px]">{marksheetFile.issuingAuthority || "State Board"}</span>
+                        </div>
+                      )}
+
+                      {marksheetFile.s3Uploaded && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-amber-900 font-medium border-t border-slate-100">
+                          <span className="flex items-center gap-1 font-semibold text-amber-800">
+                            <Cloud className="size-2.5 text-amber-600" /> S3 Vault Synced
+                          </span>
+                          <span className="text-slate-500 font-mono text-[9px] truncate max-w-[120px]" title={marksheetFile.s3Key}>
+                            {marksheetFile.s3Key?.split("/").pop()}
+                          </span>
                         </div>
                       )}
                     </>
@@ -1237,6 +1294,17 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                         <div className="pt-1 flex items-center justify-between text-[10px] text-amber-900 font-medium">
                           <span>OCR Confidence: <strong>{bankFile.confidenceScore}%</strong></span>
                           <span className="text-slate-500 font-mono text-[9px]">{bankFile.issuingAuthority || "Scheduled Bank"}</span>
+                        </div>
+                      )}
+
+                      {bankFile.s3Uploaded && (
+                        <div className="pt-1 flex items-center justify-between text-[10px] text-amber-900 font-medium border-t border-slate-100">
+                          <span className="flex items-center gap-1 font-semibold text-amber-800">
+                            <Cloud className="size-2.5 text-amber-600" /> S3 Vault Synced
+                          </span>
+                          <span className="text-slate-500 font-mono text-[9px] truncate max-w-[120px]" title={bankFile.s3Key}>
+                            {bankFile.s3Key?.split("/").pop()}
+                          </span>
                         </div>
                       )}
 

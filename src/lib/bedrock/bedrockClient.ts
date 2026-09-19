@@ -1,4 +1,4 @@
-import { BedrockRuntimeClient, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
+import { BedrockRuntimeClient, ConverseCommand, InvokeModelCommand } from "@aws-sdk/client-bedrock-runtime";
 import { SCHEMES_DATABASE, SchemeOrService } from "@/data/schemes";
 import { evaluateCedarPolicies, UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
 import { DEMO_PERSONAS } from "@/data/demoPersonas";
@@ -153,27 +153,52 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
 })))}
 `;
 
-      const payload = {
-        anthropic_version: "bedrock-2023-05-31",
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: [
-          ...history.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })),
-          { role: "user", content: userQuery }
-        ]
-      };
+      let answer = "";
+      try {
+        const converseCmd = new ConverseCommand({
+          modelId,
+          system: [{ text: systemPrompt }],
+          messages: [
+            ...history.filter(m => m.role !== "system").map(m => ({
+              role: m.role as "user" | "assistant",
+              content: [{ text: m.content }]
+            })),
+            { role: "user", content: [{ text: userQuery }] }
+          ],
+          inferenceConfig: {
+            maxTokens: 1000,
+            temperature: 0.7
+          }
+        });
 
-      const command = new InvokeModelCommand({
-        modelId,
-        contentType: "application/json",
-        accept: "application/json",
-        body: JSON.stringify(payload)
-      });
-
-      const response = await client.send(command);
-      const decoded = new TextDecoder().decode(response.body);
-      const json = JSON.parse(decoded);
-      const answer = json.content?.[0]?.text || "Response generated successfully.";
+        const response = await client.send(converseCmd);
+        answer = response.output?.message?.content?.[0]?.text || "Response generated successfully.";
+      } catch (convErr) {
+        // Fallback for Claude if older InvokeModel format is preferred
+        if (modelId.includes("anthropic")) {
+          const payload = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 1000,
+            system: systemPrompt,
+            messages: [
+              ...history.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })),
+              { role: "user", content: userQuery }
+            ]
+          };
+          const command = new InvokeModelCommand({
+            modelId,
+            contentType: "application/json",
+            accept: "application/json",
+            body: JSON.stringify(payload)
+          });
+          const response = await client.send(command);
+          const decoded = new TextDecoder().decode(response.body);
+          const json = JSON.parse(decoded);
+          answer = json.content?.[0]?.text || "Response generated successfully.";
+        } else {
+          throw convErr;
+        }
+      }
 
       return {
         answer,
