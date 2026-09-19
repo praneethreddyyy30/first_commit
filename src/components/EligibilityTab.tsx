@@ -52,6 +52,7 @@ interface EligibilityTabProps {
   lastSyncedAt?: string;
   onSyncWithApiSetu?: () => Promise<void>;
   isSyncing?: boolean;
+  cloudDataSource?: string;
 }
 
 export const EligibilityTab: React.FC<EligibilityTabProps> = ({
@@ -63,9 +64,10 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
   onNavigateToRoadmap,
   onSelectSchemeForWorkspace,
   totalSchemesCount,
-  lastSyncedAt = "Live (API Setu Gateway)",
+  lastSyncedAt = "Live (Cloud Gateway)",
   onSyncWithApiSetu,
   isSyncing = false,
+  cloudDataSource = "Amazon DynamoDB (JanSetuSchemes)",
 }) => {
   // Classification tabs: Eligible vs Not Eligible
   const [eligibilityTab, setEligibilityTab] = useState<"ELIGIBLE" | "NOT_ELIGIBLE">("ELIGIBLE");
@@ -193,7 +195,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
         </div>
       </div>
 
-      {/* API Setu & National Public Data Exchange Live Sync Bar */}
+      {/* Live Cloud Database & Gazette Scanner Sync Bar */}
       <div className="luxury-card flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#DFC8A5] bg-white p-3.5 px-5 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="relative flex size-3 shrink-0">
@@ -203,14 +205,17 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs font-bold text-[#0B1B4F] font-serif">
-                API Setu & myScheme DPI Gateway: Active & Synchronized
+                Cloud Database: {cloudDataSource}
               </span>
               <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
-                {totalSchemesCount || evaluationResults.length} Verified Policies
+                {totalSchemesCount || evaluationResults.length} Active Cloud Policies
+              </span>
+              <span className="rounded-md bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-200">
+                ⚡ Zero Search Required
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Auto-syncs with National Scholarship Portal (NSP), MoTA, & State Gazettes • Last check: <span className="font-semibold text-slate-700">{lastSyncedAt}</span>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              Auto-evaluated live for <strong>{profile.state}</strong> • Synchronized with National Scholarship Portal (NSP) & State Gazettes • Last sync: <span className="font-semibold text-slate-700">{lastSyncedAt}</span>
             </p>
           </div>
         </div>
@@ -219,13 +224,13 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
           <button
             onClick={onSyncWithApiSetu}
             disabled={isSyncing}
-            className={`shrink-0 flex items-center gap-2 rounded-xl bg-[#FAF7F2] hover:bg-[#F5E29F]/30 text-[#0B1B4F] border border-[#DFC8A5] px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer ${
+            className={`shrink-0 flex items-center gap-2 rounded-xl bg-[#0B1B4F] hover:bg-[#152864] text-[#F5E29F] border border-[#DFB738]/40 px-3.5 py-2 text-xs font-bold transition-all shadow-xs cursor-pointer ${
               isSyncing ? "opacity-70 cursor-not-allowed" : ""
             }`}
-            title="Poll API Setu & myScheme National Data Gateway for newly gazetted welfare schemes"
+            title="Scan official Government Gazettes and cloud database for latest real-time notifications"
           >
             <RefreshCw className={`size-3.5 text-[#DFB738] ${isSyncing ? "animate-spin" : ""}`} />
-            <span>{isSyncing ? "Syncing with API Setu..." : "Check for Scheme Updates"}</span>
+            <span>{isSyncing ? "Scanning Live Gazettes..." : "Scan Latest Gazettes"}</span>
           </button>
         )}
       </div>
@@ -350,6 +355,12 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                       <span className="rounded-md border border-[#EDE6DD] bg-[#FAF7F2] px-2 py-0.5 text-[10px] font-bold text-slate-700">
                         {scheme.shortCode}
                       </span>
+                      {scheme.officialPortalUrl?.includes("myscheme.gov.in") && (
+                        <span className="rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="size-2.5 text-emerald-600" />
+                          myscheme.gov.in Live
+                        </span>
+                      )}
                       {scheme.type === "healthcare" && (
                         <span className="rounded-md bg-teal-100 text-teal-800 px-2 py-0.5 text-[10px] font-bold">
                           Healthcare

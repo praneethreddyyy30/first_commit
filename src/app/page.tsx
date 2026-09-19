@@ -42,10 +42,11 @@ export default function Home() {
     "docs" | "roadmap" | "offline" | "copilot" | "dossier"
   >("docs");
 
-  // Dynamic Scheme Pool (Baseline + API Setu Dynamic Ingestion)
+  // Dynamic Scheme Pool (Sourced from Amazon DynamoDB / Live Gateway)
   const [schemes, setSchemes] = useState<SchemeOrService[]>(SCHEMES_DATABASE);
   const [isSyncingSchemes, setIsSyncingSchemes] = useState<boolean>(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<string>("Today (Live API Setu Gateway)");
+  const [lastSyncedAt, setLastSyncedAt] = useState<string>("Today (Live Cloud Gateway)");
+  const [cloudDataSource, setCloudDataSource] = useState<string>("Amazon DynamoDB (JanSetuSchemes)");
   const [syncBannerMessage, setSyncBannerMessage] = useState<string | null>(null);
 
   // Master Citizen Profile (Initial: Kavitha Selvam, Tamil Nadu)
@@ -92,30 +93,93 @@ export default function Home() {
     }
   };
 
-  // Sync with API Setu & National Public Data Exchange
+  // AUTOMATED REAL-TIME PROFILE-AWARE SCHEME DISCOVERY & CEDAR EVALUATION
+  // Zero manual search: Triggers automatically when citizen's state, category, or income changes
+  useEffect(() => {
+    let isMounted = true;
+
+    const autoSyncLiveSchemes = async () => {
+      setIsSyncingSchemes(true);
+      try {
+        const res = await fetch("/api/schemes/live-evaluate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ profile, autoDiscover: true })
+        });
+        const data = await res.json();
+        if (isMounted && data.success && data.allSchemes) {
+          setSchemes(data.allSchemes);
+          setLastSyncedAt("Just now (Live Cloud Sync)");
+          setCloudDataSource(
+            data.dataSource === "OFFICIAL_MYSCHEME_GOV_IN"
+              ? "myscheme.gov.in (Digital India / API Setu)"
+              : data.dataSource === "AMAZON_DYNAMODB"
+              ? "Amazon DynamoDB (JanSetuSchemes)"
+              : "Cloud Database (Live Gateway)"
+          );
+          if (data.newlyDiscovered && data.newlyDiscovered.length > 0) {
+            const names = data.newlyDiscovered.map((s: { shortCode: string }) => s.shortCode).join(", ");
+            setSyncBannerMessage(`🎉 Discovered & added live government scheme for ${profile.state}: ${names}`);
+            setTimeout(() => setSyncBannerMessage(null), 7000);
+          }
+        }
+      } catch (err) {
+        console.warn("Live cloud scheme evaluation fallback:", err);
+      } finally {
+        if (isMounted) setIsSyncingSchemes(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(() => {
+      autoSyncLiveSchemes();
+    }, 450);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(debounceTimer);
+    };
+  }, [
+    profile.state,
+    profile.category,
+    profile.annualFamilyIncome,
+    profile.educationLevel,
+    profile.gender,
+    profile.tnCommunity,
+    profile.apCommunity,
+    profile.studiedInGovtSchool6To12,
+    profile.isFirstGraduateInFamily,
+    profile.admissionQuota
+  ]);
+
+  // Sync with Live Gazette Scanner & National Public Data Exchange
   const handleSyncWithApiSetu = async () => {
     setIsSyncingSchemes(true);
     try {
-      const res = await fetch("/api/schemes/sync", {
+      const res = await fetch("/api/schemes/live-evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ forceRefresh: true })
+        body: JSON.stringify({ profile, autoDiscover: true })
       });
       const data = await res.json();
       if (data.success && data.allSchemes) {
         setSchemes(data.allSchemes);
-        setLastSyncedAt("Just now");
-        if (data.newlyAddedSchemes && data.newlyAddedSchemes.length > 0) {
-          const names = data.newlyAddedSchemes.map((s: { shortCode: string }) => s.shortCode).join(", ");
-          setSyncBannerMessage(`🎉 Successfully ingested newly gazetted scheme(s) from API Setu: ${names}`);
+        setLastSyncedAt("Just now (Scanned Live Gazettes)");
+        setCloudDataSource(
+          data.dataSource === "AMAZON_DYNAMODB"
+            ? "Amazon DynamoDB (JanSetuSchemes)"
+            : "Cloud Database (Live Gateway)"
+        );
+        if (data.newlyDiscovered && data.newlyDiscovered.length > 0) {
+          const names = data.newlyDiscovered.map((s: { shortCode: string }) => s.shortCode).join(", ");
+          setSyncBannerMessage(`🎉 Successfully ingested newly gazetted scheme(s): ${names}`);
         } else {
-          setSyncBannerMessage("✅ All schemes verified up-to-date with API Setu.");
+          setSyncBannerMessage("✅ All schemes verified up-to-date with official Government Gazettes & Cloud DB.");
         }
         setTimeout(() => setSyncBannerMessage(null), 8000);
       }
     } catch (e) {
       console.error("Failed to sync schemes:", e);
-      setSyncBannerMessage("⚠️ Could not reach API Setu gateway. Kept baseline policies active.");
+      setSyncBannerMessage("⚠️ Could not reach live gateway. Kept active cloud cache available.");
       setTimeout(() => setSyncBannerMessage(null), 5000);
     } finally {
       setIsSyncingSchemes(false);
@@ -276,6 +340,7 @@ export default function Home() {
               lastSyncedAt={lastSyncedAt}
               onSyncWithApiSetu={handleSyncWithApiSetu}
               isSyncing={isSyncingSchemes}
+              cloudDataSource={cloudDataSource}
             />
           )}
 
