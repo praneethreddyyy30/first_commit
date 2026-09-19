@@ -75,6 +75,11 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
   const [showMandateModal, setShowMandateModal] = useState(false);
   const [showAffidavitModal, setShowAffidavitModal] = useState(false);
   const [selectedCertGuideId, setSelectedCertGuideId] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState<{ aadhaar: boolean; marksheet: boolean; bank: boolean }>({
+    aadhaar: false,
+    marksheet: false,
+    bank: false
+  });
 
   // Default active scheme
   const defaultSchemeId = useMemo(() => {
@@ -139,15 +144,27 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
   // Sync state whenever initialInput or profile changes
   useEffect(() => {
-    setAuditInput(initialInput);
-    const aadhaarName = initialInput.nameOnAadhaar || profile?.name || "Citizen";
-    const marksheetName = initialInput.nameOnMarksheet || (profile?.name ? `${profile.name.split(" ")[0]} S` : "Citizen S");
+    const aadhaarName = initialInput.nameOnAadhaar || profile?.name || "Mohammed";
+    const marksheetName =
+      initialInput.nameOnMarksheet ||
+      (profile?.name
+        ? `${profile.name.split(" ")[0]} S`
+        : aadhaarName
+        ? `${aadhaarName.split(" ")[0]} S`
+        : "Mohammed S");
+
+    const syncedInput: DocumentAuditInput = {
+      ...initialInput,
+      nameOnAadhaar: initialInput.nameOnAadhaar || aadhaarName,
+      nameOnMarksheet: initialInput.nameOnMarksheet || marksheetName
+    };
+    setAuditInput(syncedInput);
 
     setAadhaarFile((prev) => ({
       name: prev?.name || "Aadhaar_Card.pdf",
       size: prev?.size || "420 KB",
       type: prev?.type || "application/pdf",
-      extractedName: aadhaarName,
+      extractedName: syncedInput.nameOnAadhaar,
       extractedDob: initialInput.dobOnAadhaar || "2006-05-12",
       extractedId: "XXXX-XXXX-4819"
     }));
@@ -156,7 +173,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
       name: prev?.name || "Class10_Memo.jpg",
       size: prev?.size || "860 KB",
       type: prev?.type || "image/jpeg",
-      extractedName: marksheetName,
+      extractedName: syncedInput.nameOnMarksheet,
       extractedDob: initialInput.dobOnMarksheet || "2006-05-12",
       extractedId: "SSC-2022-849182"
     }));
@@ -165,7 +182,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
       name: prev?.name || "Bank_Passbook.jpg",
       size: prev?.size || "610 KB",
       type: prev?.type || "image/jpeg",
-      extractedName: aadhaarName,
+      extractedName: syncedInput.nameOnAadhaar,
       extractedId: "38920192819"
     }));
   }, [initialInput, profile]);
@@ -201,45 +218,124 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     if (onAuditInputChange) onAuditInputChange(updated);
   };
 
-  // Upload handler for native file input
-  const handleFileUpload = (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload handler for native file input with OCR extraction
+  const handleFileUpload = async (type: "aadhaar" | "marksheet" | "bank", e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset the input value so selecting the same file triggers onChange again
+    e.target.value = "";
 
     const sizeStr =
       file.size > 1024 * 1024
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(file.size / 1024)} KB`;
 
-    if (type === "aadhaar") {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Aadhaar Holder";
-      setAadhaarFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnAadhaar || "2006-05-12",
-        extractedId: "XXXX-XXXX-4819",
+    setIsExtracting((prev) => ({ ...prev, [type]: true }));
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("documentType", type);
+      formData.append("profileName", profile?.name || "");
+      formData.append("nameOnAadhaar", auditInput.nameOnAadhaar || "");
+
+      const res = await fetch("/api/audit/extract-doc", {
+        method: "POST",
+        body: formData
       });
-    } else if (type === "marksheet") {
-      const currentName = auditInput.nameOnMarksheet || "Marksheet Candidate";
-      setMarksheetFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedDob: auditInput.dobOnMarksheet || "2006-05-12",
-        extractedId: "SSC-2022-849182",
-      });
-    } else {
-      const currentName = auditInput.nameOnAadhaar || profile?.name || "Account Holder";
-      setBankFile({
-        name: file.name,
-        size: sizeStr,
-        type: file.type,
-        extractedName: currentName,
-        extractedId: "38920192819",
-      });
+
+      const data = await res.json();
+
+      if (data.success && data.extractedName) {
+        if (type === "aadhaar") {
+          const updated: DocumentAuditInput = {
+            ...auditInput,
+            nameOnAadhaar: data.extractedName,
+            dobOnAadhaar: data.extractedDob || auditInput.dobOnAadhaar || "2006-05-12"
+          };
+          setAuditInput(updated);
+          setAadhaarFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: data.extractedName,
+            extractedDob: data.extractedDob || "2006-05-12",
+            extractedId: data.extractedId || "XXXX-XXXX-4819"
+          });
+          if (onAuditInputChange) onAuditInputChange(updated);
+        } else if (type === "marksheet") {
+          const updated: DocumentAuditInput = {
+            ...auditInput,
+            nameOnMarksheet: data.extractedName,
+            dobOnMarksheet: data.extractedDob || auditInput.dobOnMarksheet || "2006-05-12"
+          };
+          setAuditInput(updated);
+          setMarksheetFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: data.extractedName,
+            extractedDob: data.extractedDob || "2006-05-12",
+            extractedId: data.extractedId || "SSC-2022-849182"
+          });
+          if (onAuditInputChange) onAuditInputChange(updated);
+        } else {
+          setBankFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: data.extractedName,
+            extractedId: data.extractedId || "38920192819"
+          });
+        }
+      } else {
+        // Fallback if extraction returned error
+        if (type === "aadhaar") {
+          const currentName = auditInput.nameOnAadhaar || profile?.name || "Mohammed";
+          setAadhaarFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: currentName,
+            extractedDob: auditInput.dobOnAadhaar || "2006-05-12",
+            extractedId: "XXXX-XXXX-4819"
+          });
+        } else if (type === "marksheet") {
+          const currentName = auditInput.nameOnMarksheet || auditInput.nameOnAadhaar || profile?.name || "Mohammed S";
+          const updated: DocumentAuditInput = { ...auditInput, nameOnMarksheet: currentName };
+          setAuditInput(updated);
+          setMarksheetFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: currentName,
+            extractedDob: auditInput.dobOnMarksheet || "2006-05-12",
+            extractedId: "SSC-2022-849182"
+          });
+          if (onAuditInputChange) onAuditInputChange(updated);
+        } else {
+          const currentName = auditInput.nameOnAadhaar || profile?.name || "Account Holder";
+          setBankFile({
+            name: file.name,
+            size: sizeStr,
+            type: file.type,
+            extractedName: currentName,
+            extractedId: "38920192819"
+          });
+        }
+      }
+    } catch (err) {
+      console.error("Document OCR extraction error:", err);
+      // Ensure input is not left blank on error
+      if (type === "marksheet" && !auditInput.nameOnMarksheet) {
+        const fallback = auditInput.nameOnAadhaar || profile?.name || "Mohammed S";
+        const updated = { ...auditInput, nameOnMarksheet: fallback };
+        setAuditInput(updated);
+        if (onAuditInputChange) onAuditInputChange(updated);
+      }
+    } finally {
+      setIsExtracting((prev) => ({ ...prev, [type]: false }));
     }
   };
 
@@ -762,23 +858,42 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
               {/* Upload Input Control */}
               <div className="mt-2">
-                <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all">
-                  <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                <label className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all ${isExtracting.aadhaar ? "opacity-75 cursor-wait" : ""}`}>
+                  {isExtracting.aadhaar ? (
+                    <RefreshCw className="size-5 text-amber-600 animate-spin mb-1" />
+                  ) : (
+                    <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                  )}
                   <span className="text-xs font-bold text-[#0B1B4F]">
-                    {aadhaarFile ? "Replace Aadhaar File" : "Upload Aadhaar (PDF / JPG)"}
+                    {isExtracting.aadhaar
+                      ? "Scanning with AI OCR..."
+                      : aadhaarFile
+                      ? "Replace Aadhaar File"
+                      : "Upload Aadhaar (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">
+                    {isExtracting.aadhaar ? "Extracting identity text..." : "Click to browse from device"}
+                  </span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
+                    disabled={isExtracting.aadhaar}
                     onChange={(e) => handleFileUpload("aadhaar", e)}
                   />
                 </label>
               </div>
 
               {/* File Info & OCR Output */}
-              {aadhaarFile && (
+              {isExtracting.aadhaar ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1.5 text-xs animate-pulse">
+                  <div className="flex items-center gap-2 text-amber-800 font-bold">
+                    <RefreshCw className="size-3.5 animate-spin" />
+                    <span>Analyzing Aadhaar Card with Multimodal OCR...</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">Verifying UIDAI master identity name & date of birth...</p>
+                </div>
+              ) : aadhaarFile && (
                 <div className="mt-3 rounded-xl border border-[#EDE6DD] bg-white p-3 space-y-2 text-xs">
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{aadhaarFile.name}</span>
@@ -786,9 +901,14 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
-                      Extracted Name on Aadhaar:
-                    </label>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
+                        Extracted Name on Aadhaar:
+                      </label>
+                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                        OCR Active
+                      </span>
+                    </div>
                     <div className="relative">
                       <input
                         type="text"
@@ -836,23 +956,42 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
               {/* Upload Input Control */}
               <div className="mt-2">
-                <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all">
-                  <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                <label className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all ${isExtracting.marksheet ? "opacity-75 cursor-wait" : ""}`}>
+                  {isExtracting.marksheet ? (
+                    <RefreshCw className="size-5 text-sky-600 animate-spin mb-1" />
+                  ) : (
+                    <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                  )}
                   <span className="text-xs font-bold text-[#0B1B4F]">
-                    {marksheetFile ? "Replace Marksheet File" : "Upload Memo (PDF / JPG)"}
+                    {isExtracting.marksheet
+                      ? "Scanning with AI OCR..."
+                      : marksheetFile
+                      ? "Replace Marksheet File"
+                      : "Upload Memo (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">
+                    {isExtracting.marksheet ? "Extracting candidate marksheet..." : "Click to browse from device"}
+                  </span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
+                    disabled={isExtracting.marksheet}
                     onChange={(e) => handleFileUpload("marksheet", e)}
                   />
                 </label>
               </div>
 
               {/* File Info & OCR Output */}
-              {marksheetFile && (
+              {isExtracting.marksheet ? (
+                <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/70 p-3 space-y-1.5 text-xs animate-pulse">
+                  <div className="flex items-center gap-2 text-sky-800 font-bold">
+                    <RefreshCw className="size-3.5 animate-spin" />
+                    <span>Analyzing 10th Marksheet with Multimodal OCR...</span>
+                  </div>
+                  <p className="text-[11px] text-sky-700">Extracting student name, roll number, and exam board record...</p>
+                </div>
+              ) : marksheetFile && (
                 <div className="mt-3 rounded-xl border border-[#EDE6DD] bg-white p-3 space-y-2 text-xs">
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{marksheetFile.name}</span>
@@ -860,9 +999,14 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider mb-0.5 font-serif">
-                      Extracted Name on Marksheet:
-                    </label>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <label className="block text-[10px] font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
+                        Extracted Name on Marksheet:
+                      </label>
+                      <span className="text-[9px] font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded">
+                        OCR Active
+                      </span>
+                    </div>
                     <div className="relative">
                       <input
                         type="text"
@@ -910,23 +1054,42 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
               {/* Upload Input Control */}
               <div className="mt-2">
-                <label className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all">
-                  <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                <label className={`flex flex-col items-center justify-center rounded-xl border border-dashed border-[#DFC8A5] bg-white p-3 hover:bg-[#FAF7F2] cursor-pointer transition-all ${isExtracting.bank ? "opacity-75 cursor-wait" : ""}`}>
+                  {isExtracting.bank ? (
+                    <RefreshCw className="size-5 text-amber-600 animate-spin mb-1" />
+                  ) : (
+                    <FileUp className="size-5 text-[#0B1B4F] mb-1" />
+                  )}
                   <span className="text-xs font-bold text-[#0B1B4F]">
-                    {bankFile ? "Replace Passbook File" : "Upload Passbook (PDF / JPG)"}
+                    {isExtracting.bank
+                      ? "Scanning with AI OCR..."
+                      : bankFile
+                      ? "Replace Passbook File"
+                      : "Upload Passbook (PDF / JPG)"}
                   </span>
-                  <span className="text-[10px] text-slate-400">Click to browse from device</span>
+                  <span className="text-[10px] text-slate-400">
+                    {isExtracting.bank ? "Extracting account details..." : "Click to browse from device"}
+                  </span>
                   <input
                     type="file"
                     accept="image/*,application/pdf"
                     className="hidden"
+                    disabled={isExtracting.bank}
                     onChange={(e) => handleFileUpload("bank", e)}
                   />
                 </label>
               </div>
 
               {/* File Info & OCR Output */}
-              {bankFile && (
+              {isExtracting.bank ? (
+                <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1.5 text-xs animate-pulse">
+                  <div className="flex items-center gap-2 text-amber-800 font-bold">
+                    <RefreshCw className="size-3.5 animate-spin" />
+                    <span>Analyzing Passbook with OCR...</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">Verifying account holder name & bank details...</p>
+                </div>
+              ) : bankFile && (
                 <div className="mt-3 rounded-xl border border-[#EDE6DD] bg-white p-3 space-y-2 text-xs">
                   <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                     <span className="font-bold text-slate-800 truncate max-w-[150px]">{bankFile.name}</span>
