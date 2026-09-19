@@ -27,6 +27,7 @@ export interface RoadmapStage {
   stageNumber: number;
   stageName: string;
   actor: string;
+  officeType?: string;
   timeline: string;
   description: string;
   actionItem: string;
@@ -2050,53 +2051,200 @@ export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRo
       },
     ],
     bankingRequirement: "Aadhaar seeded bank account on NPCI mapper for Direct Benefit Transfer.",
-    stages: [
-      {
-        stageNumber: 1,
-        stageName: "Pre-Flight Document Gathering & Audit",
-        actor: "Applicant (Self)",
-        timeline: "Week 1",
-        description: "Assemble foundational identity documents and verify prerequisite certificate validity.",
-        actionItem: "Run JanSetu Pre-Flight Audit to detect clerical mismatches before portal entry.",
-        commonPitfall: "Proceeding with expired certificates or unseeded bank accounts.",
-      },
-      {
-        stageNumber: 2,
-        stageName: "Official Portal Registration & Submission",
-        actor: "Applicant",
-        timeline: "Before Portal Deadline",
-        description: `Submit online application on ${portalName} with Aadhaar OTP authentication.`,
-        actionItem: "Download and print application submission acknowledgment.",
-        commonPitfall: "Uploading blurry or unreadable scanned copies.",
-      },
-      {
-        stageNumber: 3,
-        stageName: "First-Tier Institutional Verification",
-        actor: type === "healthcare" ? "Hospital Nodal Officer" : "Institute Nodal Officer (INO)",
-        timeline: "Within 10 Days",
-        description: "Local institutional officer cross-verifies credentials against original records.",
-        actionItem: "Submit physical copies to verification clerk immediately after online entry.",
-        commonPitfall: "Delaying physical document submission past the institute closing date.",
-      },
-      {
-        stageNumber: 4,
-        stageName: "District & State Authority Sanction",
-        actor: "District Welfare / State Nodal Officer",
-        timeline: "15 - 20 Days",
-        description: "Competent authority verifies quotas and approves disbursement sanction order.",
-        actionItem: "Monitor online status weekly; address any defective notice promptly.",
-        commonPitfall: "Failing to rectify defective notices within the 72-hour window.",
-      },
-      {
-        stageNumber: 5,
-        stageName: "Electronic Disbursal via PFMS / TMS",
-        actor: "Central Treasury / Bank Gateway",
-        timeline: "Direct Disbursal",
-        description: "Funds or cashless service are delivered directly via Aadhaar Payment Bridge.",
-        actionItem: "Verify credit via bank SMS or download official voucher.",
-        commonPitfall: "Dormant bank account preventing electronic credit.",
-      },
-    ],
+    stages: (() => {
+      // 1. STATUTORY REVENUE CERTIFICATES (4 Stages across Revenue Desks)
+      if (type === "certificate") {
+        return [
+          {
+            stageNumber: 1,
+            stageName: "Citizen Online / MeeSeva Submission",
+            actor: "Citizen / CSC Operator",
+            officeType: "MeeSeva / Village CSC Desk",
+            timeline: "Day 1",
+            description: `Submit application on ${portalName} with self-declaration affidavit and ancestral proof.`,
+            actionItem: "Obtain digital application transaction number (e.g., AP/TN Application ID).",
+            commonPitfall: "Submitting without father's or ancestral revenue record.",
+          },
+          {
+            stageNumber: 2,
+            stageName: "Village Field Inquiry & Local Spot Verification",
+            actor: "Village Revenue Officer (VRO / VAO)",
+            officeType: "Grama Sachivalayam / Village Revenue Secretariat",
+            timeline: "Within 5–7 Days",
+            description: "Field officer conducts local inquiry, verifies native residence and community records.",
+            actionItem: "Be available during village spot verification or keep neighbor witnesses informed.",
+            commonPitfall: "Applicant not available at registered permanent residential address.",
+          },
+          {
+            stageNumber: 3,
+            stageName: "Revenue Inspector Statutory Scrutiny",
+            actor: "Revenue Inspector (RI)",
+            officeType: "Mandal / Firka Revenue Office",
+            timeline: "Within 3 Days",
+            description: "Supervising officer reviews VRO field inquiry report and legal gazette records.",
+            actionItem: "Check online portal status for RI endorsement clearance.",
+            commonPitfall: "Land/Income discrepancies between revenue survey records and affidavit.",
+          },
+          {
+            stageNumber: 4,
+            stageName: "Digital Signing & Certificate Issuance",
+            actor: "Tahsildar / Mandal Revenue Officer (MRO)",
+            officeType: "Tahsil / Taluk Office",
+            timeline: "Within 15 Days (RTSA Guarantee)",
+            description: "Competent revenue authority digitally signs the barcoded, QR-coded statutory certificate.",
+            actionItem: "Download official digitally signed PDF from citizen portal or MeeSeva kiosk.",
+            commonPitfall: "Expired link or not downloading within the statutory validity window.",
+          },
+        ];
+      }
+
+      // 2. DIRECT STATE BENEFIT / CASH TRANSFERS (3 Stages: Enrollment -> Social Audit -> Treasury DBT)
+      const isDirectCash =
+        schemeId.includes("Pudhumai") ||
+        schemeId.includes("Tamil_Pudhalvan") ||
+        schemeId.includes("Amma_Vodi") ||
+        schemeId.includes("Pension") ||
+        schemeId.includes("Cheyutha") ||
+        schemeId.includes("Aasara") ||
+        schemeId.includes("KMUT") ||
+        schemeId.includes("Marriage") ||
+        schemeId.includes("Vahana");
+
+      if (isDirectCash) {
+        return [
+          {
+            stageNumber: 1,
+            stageName: "Aadhaar e-KYC & Beneficiary Enrollment",
+            actor: "Beneficiary / Village Volunteer",
+            officeType: "Grama / Ward Sachivalayam or School",
+            timeline: "Day 1",
+            description: `Online registration with biometric Aadhaar e-KYC and student/household verification on ${portalName}.`,
+            actionItem: "Ensure mobile number is linked to Aadhaar for OTP verification.",
+            commonPitfall: "Spelling variation between ration card and bank passbook.",
+          },
+          {
+            stageNumber: 2,
+            stageName: "Social Audit & Field Eligibility Scrutiny",
+            actor: "Ward Secretary / CDPO / Field Officer",
+            officeType: "Local Civic Directorate / Municipal Office",
+            timeline: "Within 10 Days",
+            description: "Field officer verifies government school attendance (6–12), land records, and electricity meter limits.",
+            actionItem: "Review draft beneficiary social audit list displayed at local secretariat.",
+            commonPitfall: "Failure to raise objection during social audit display window.",
+          },
+          {
+            stageNumber: 3,
+            stageName: "Direct Electronic Treasury Disbursal (e-Kuber DBT)",
+            actor: "State Treasury Directorate",
+            officeType: "State Electronic Treasury / RBI APBS",
+            timeline: "Direct Monthly / Scheduled Credit",
+            description: "Funds are released directly into the verified Aadhaar-seeded bank account.",
+            actionItem: "Check bank SMS confirmation or verify account credit on portal.",
+            commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
+          },
+        ];
+      }
+
+      // 3. HEALTHCARE & CASHLESS TREATMENT (4 Stages across Hospital & State Health Agency)
+      if (type === "healthcare") {
+        return [
+          {
+            stageNumber: 1,
+            stageName: "Ayushman Kiosk e-KYC & Verification",
+            actor: "Ayushman Mitra / Arogya Mithra",
+            officeType: "Empaneled Hospital Helpdesk",
+            timeline: "Instant (15 mins)",
+            description: "Verify beneficiary entitlement on SECC / NFSA database using Aadhaar or Ration Card.",
+            actionItem: "Generate Golden Health PVC Card on spot at zero charge.",
+            commonPitfall: "Going to an un-empaneled private nursing home.",
+          },
+          {
+            stageNumber: 2,
+            stageName: "Clinical Diagnosis & Specialist Prescription",
+            actor: "Empaneled Specialist Doctor",
+            officeType: "Hospital Inpatient Department",
+            timeline: "Day 1 of Admission",
+            description: "Doctor diagnoses medical condition and prescribes an empaneled surgical or medical package.",
+            actionItem: "Collect clinical diagnostic scans and specialist admission requisition.",
+            commonPitfall: "Paying cash for diagnostic scans at empaneled hospital.",
+          },
+          {
+            stageNumber: 3,
+            stageName: "State Health Agency (SHA) Pre-Authorization",
+            actor: "State Health Agency / TPA Medical Auditor",
+            officeType: "Online National Health Authority TMS Portal",
+            timeline: "Within 2 to 4 Hours",
+            description: "Hospital uploads clinical reports to NHA portal for government treatment sanction.",
+            actionItem: "Ensure hospital initiates TMS claim before ICU admission or surgery.",
+            commonPitfall: "Hospital asking for cash deposit as security deposit (strictly illegal).",
+          },
+          {
+            stageNumber: 4,
+            stageName: "100% Cashless Medical Care & Biometric Discharge",
+            actor: "Hospital Medical Team & Pharmacy",
+            officeType: "Empaneled Hospital Discharge Desk",
+            timeline: "Duration of Treatment + 15 Days Meds",
+            description: "Patient receives complete cashless surgery, medications, implants, and 15 days of take-home medicine.",
+            actionItem: "Sign biometric discharge voucher only after full treatment completion.",
+            commonPitfall: "Leaving without collecting mandatory 15-day post-care medication pack.",
+          },
+        ];
+      }
+
+      // 4. CENTRAL / MERIT SCHOLARSHIPS (5 Stages across Academic & Welfare Wings)
+      return [
+        {
+          stageNumber: 1,
+          stageName: "Pre-Flight Document Gathering & Online Submission",
+          actor: "Applicant (Student)",
+          officeType: "Online National Scholarship Portal (NSP)",
+          timeline: "Before Portal Deadline",
+          description: `Submit online application on ${portalName} with Aadhaar OTP authentication.`,
+          actionItem: "Download and print application submission acknowledgment.",
+          commonPitfall: "Uploading blurry or unreadable scanned copies.",
+        },
+        {
+          stageNumber: 2,
+          stageName: "First-Tier Institutional Bonafide Verification",
+          actor: "Institute Nodal Officer (INO) / College Principal",
+          officeType: "College / University Academic Office",
+          timeline: "Within 10 Days of Submission",
+          description: "College verification officer cross-verifies student admission, attendance, and fee structure.",
+          actionItem: "Submit physical copies to verification clerk immediately after online entry.",
+          commonPitfall: "Delaying physical document submission past the institute closing date.",
+        },
+        {
+          stageNumber: 3,
+          stageName: "District Welfare Officer (DNO) Scrutiny",
+          actor: "District Welfare / Social Justice Officer",
+          officeType: "District Collectorate Welfare Wing",
+          timeline: "15 Days",
+          description: "Competent district authority verifies caste, income authenticity, and student quota.",
+          actionItem: "Monitor online status weekly; address any defective notice promptly.",
+          commonPitfall: "Failing to rectify defective notices within the 72-hour window.",
+        },
+        {
+          stageNumber: 4,
+          stageName: "State Directorate (SNO) Merit Sanction",
+          actor: "State Nodal Officer (SNO)",
+          officeType: "State Higher Education / Tribal Directorate",
+          timeline: "Within 20 Days",
+          description: "State directorate creates verified merit list and generates financial sanction orders.",
+          actionItem: "Track application status on portal for SNO sanction order number.",
+          commonPitfall: "Institute not recognized under AISHE code.",
+        },
+        {
+          stageNumber: 5,
+          stageName: "Direct Disbursal via PFMS / APBS",
+          actor: "Public Financial Management System (PFMS)",
+          officeType: "Central Treasury / National Payments Gateway",
+          timeline: "Direct Disbursal",
+          description: "Scholarship grant is credited directly into the verified Aadhaar-seeded bank account.",
+          actionItem: "Verify credit via bank SMS or download official payment voucher.",
+          commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
+        },
+      ];
+    })(),
     rejectionChecklist: [
       {
         check: "Are all required certificates issued in the current financial year?",
