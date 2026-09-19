@@ -639,23 +639,29 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
               </div>
             </div>
 
-            {/* PART B: 5-Stage Life Cycle Pipeline */}
+            {/* PART B: Dynamic Life Cycle Pipeline & Office Desks */}
             <div className="space-y-4 pt-4 border-t border-[#EDE6DD]">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="text-sm font-bold text-[#0B1B4F] uppercase tracking-wider font-serif">
-                    Official 5-Stage Processing Timeline & Rejection Gates
+                    Official {currentRoadmap.stages.length}-Stage Processing Timeline & Office Desks
                   </h4>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    How an application flows from initial submission to final disbursement.
+                    Step-by-step verification pipeline tailored specifically to this scheme across responsible government desks.
                   </p>
                 </div>
                 <span className="rounded-md bg-[#FAF7F2] border border-[#DFC8A5] px-2.5 py-1 text-xs font-bold text-[#0B1B4F]">
-                  5 Verification Gates
+                  {currentRoadmap.stages.length} Verification Desks
                 </span>
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div className={`grid gap-3 sm:grid-cols-2 ${
+                currentRoadmap.stages.length === 3
+                  ? "lg:grid-cols-3"
+                  : currentRoadmap.stages.length === 4
+                  ? "lg:grid-cols-4"
+                  : "lg:grid-cols-5"
+              }`}>
                 {currentRoadmap.stages.map((stage) => (
                   <div
                     key={stage.stageNumber}
@@ -670,11 +676,20 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                           {stage.timeline}
                         </span>
                       </div>
+
+                      {stage.officeType && (
+                        <div className="mb-1.5">
+                          <span className="inline-block rounded-md bg-amber-50 border border-amber-200 px-2 py-0.5 text-[9px] font-bold text-amber-900 tracking-wide">
+                            🏢 {stage.officeType}
+                          </span>
+                        </div>
+                      )}
+
                       <h5 className="text-xs font-bold text-[#0B1B4F] leading-snug font-serif">
                         {stage.stageName}
                       </h5>
-                      <span className="text-[10px] font-bold text-amber-800 block mt-0.5">
-                        Actor: {stage.actor}
+                      <span className="text-[10px] font-bold text-slate-600 block mt-0.5">
+                        Responsible: <strong className="text-amber-900">{stage.actor}</strong>
                       </span>
                       <p className="mt-2 text-[11px] text-slate-600 leading-relaxed">
                         {stage.description}

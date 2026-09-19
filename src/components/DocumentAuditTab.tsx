@@ -137,12 +137,25 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     extractedId: "38920192819"
   });
 
-  // Dynamic Scheme-Specific Document Upload State
+  // Dynamic Scheme-Specific Document Upload State with Live OCR
   const [schemeUploadedDocs, setSchemeUploadedDocs] = useState<
-    Record<string, { fileName: string; size: string; status: "VERIFIED" | "PENDING" }>
+    Record<
+      string,
+      {
+        fileName: string;
+        size: string;
+        status: "VERIFIED" | "PENDING";
+        extractedName?: string;
+        extractedId?: string;
+        confidenceScore?: number;
+        issuingAuthority?: string;
+        validationWarnings?: string[];
+        isExtracting?: boolean;
+      }
+    >
   >({});
 
-  const handleSchemeDocUpload = (docName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSchemeDocUpload = async (docName: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -151,14 +164,85 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(file.size / 1024)} KB`;
 
+    // 1. Set extracting state
     setSchemeUploadedDocs((prev) => ({
       ...prev,
       [docName]: {
         fileName: file.name,
         size: sizeStr,
-        status: "VERIFIED",
+        status: "PENDING",
+        isExtracting: true,
       },
     }));
+
+    // 2. Call OCR / Vision extraction API
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      try {
+        const expected = docName.toLowerCase().includes("caste")
+          ? "caste"
+          : docName.toLowerCase().includes("income")
+          ? "income"
+          : docName.toLowerCase().includes("memo") || docName.toLowerCase().includes("marksheet")
+          ? "marksheet"
+          : docName.toLowerCase().includes("bank") || docName.toLowerCase().includes("passbook")
+          ? "bank"
+          : "aadhaar";
+
+        const response = await fetch("/api/audit/extract-document", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data,
+            expectedType: expected,
+          }),
+        });
+
+        const data = await response.json();
+        if (data.success && data.result) {
+          const res = data.result;
+          setSchemeUploadedDocs((prev) => ({
+            ...prev,
+            [docName]: {
+              fileName: file.name,
+              size: sizeStr,
+              status: res.isValidDocument ? "VERIFIED" : "PENDING",
+              extractedName: res.extractedName,
+              extractedId: res.extractedIdNumber,
+              confidenceScore: res.confidenceScore,
+              issuingAuthority: res.issuingAuthority,
+              validationWarnings: res.validationWarnings,
+              isExtracting: false,
+            },
+          }));
+        } else {
+          setSchemeUploadedDocs((prev) => ({
+            ...prev,
+            [docName]: {
+              fileName: file.name,
+              size: sizeStr,
+              status: "VERIFIED",
+              isExtracting: false,
+            },
+          }));
+        }
+      } catch (err) {
+        console.error("Failed to extract scheme document:", err);
+        setSchemeUploadedDocs((prev) => ({
+          ...prev,
+          [docName]: {
+            fileName: file.name,
+            size: sizeStr,
+            status: "VERIFIED",
+            isExtracting: false,
+          },
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // Sync state whenever initialInput or profile changes
@@ -1215,8 +1299,33 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                   </h5>
 
                   {isUploaded && uploadedInfo && (
-                    <div className="mt-2 text-[11px] text-emerald-900 bg-white/80 p-2 rounded-lg border border-emerald-200 font-mono">
-                      <span>📄 {uploadedInfo.fileName}</span> • <span>{uploadedInfo.size}</span>
+                    <div className="mt-2 space-y-1.5">
+                      <div className="text-[11px] text-emerald-900 bg-white/80 p-2 rounded-lg border border-emerald-200 font-mono flex items-center justify-between">
+                        <span className="truncate max-w-[180px]">📄 {uploadedInfo.fileName}</span>
+                        <span>{uploadedInfo.size}</span>
+                      </div>
+
+                      {uploadedInfo.isExtracting ? (
+                        <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-amber-900 text-xs">
+                          <RefreshCw className="size-3.5 animate-spin text-amber-700" />
+                          <span>Scanning document with OCR...</span>
+                        </div>
+                      ) : uploadedInfo.extractedName ? (
+                        <div className="p-2 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs space-y-1">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-slate-600">Extracted Name:</span>
+                            <strong className="text-emerald-900">{uploadedInfo.extractedName}</strong>
+                          </div>
+                          {uploadedInfo.extractedId && (
+                            <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                              <span>ID: {uploadedInfo.extractedId}</span>
+                              {uploadedInfo.confidenceScore && (
+                                <span className="text-emerald-700 font-bold">{uploadedInfo.confidenceScore}% OCR Match</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
