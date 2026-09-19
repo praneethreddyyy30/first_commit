@@ -1993,6 +1993,117 @@ when {
         a: "Permanent validity for Community and Date of Birth; Nativity is valid for 5 years."
       }
     ]
+  },
+  // 26. Scheduled Tribes & Forest Dwellers Recognition of Forest Rights (RoFR / Jungle Land Patta) - TOTALLY OFFLINE
+  {
+    id: "FRA_RoFR_Land_Patta",
+    title: "Tribal Forest Rights Act (RoFR / Jungle Bhoomi Land Patta Title Deed)",
+    shortCode: "FRA-ROFR-PATTA",
+    type: "certificate",
+    ministry: "Ministry of Tribal Affairs & State Revenue & Forest Administration",
+    sponsoringBody: "Statutory Right under Forest Rights Act (FRA) 2006 (Central Act No. 2 of 2007)",
+    level: "Central",
+    targetCategories: ["ST", "All"],
+    maxIncome: 9999999,
+    educationStages: ["Class 9", "Class 10", "11th", "12th", "UG", "PG", "Diploma", "PhD", "Other"],
+    courseTypesAllowed: ["Regular Full-Time", "Diploma"],
+    managementQuotaAllowed: false,
+    benefitAmount: "Up to 10 Acres (4 Hectares) Permanent Heritable Registered Land Title Deed (Joint Patta)",
+    benefitDescription: "Grants legal, permanent registered ownership and revenue passbook over traditionally cultivated forest land (Jungle Bhoomi) to Scheduled Tribes and Other Traditional Forest Dwellers who resided prior to 13 December 2005.",
+    officialPortalUrl: "",
+    portalName: "100% In-Person Physical Process (No Online Portal)",
+    portalSchemeCode: "FRA-ROFR-2006",
+    deadline: "Permanent Statutory Right / Ongoing Gram Sabha Sessions",
+    daysRemaining: 180,
+    prerequisites: ["Caste_Certificate", "Domicile_Certificate"],
+    mandatoryDocuments: [
+      "Form A - Individual Forest Rights Claim Proforma (physically signed by claimant)",
+      "Traditional Cultivation Proof (forest clearing receipts, stone bunds, ancestral burial marks)",
+      "Voter ID / Ration Card proving residence in the forest village prior to 13 Dec 2005",
+      "Aadhaar Card of Claimant and Spouse (Joint Title Deed is legally mandatory under FRA)",
+      "Elder Witness Statements from Gram Sabha Forest Rights Committee (FRC) elders",
+      "Field Panchanama signed by neighboring forest landholders"
+    ],
+    offlineSubmission: {
+      centerName: "Gram Sabha Forest Rights Committee (FRC) Desk & Tahsildar Office (Land Records Section)",
+      counterName: "Tribal Land Rights & RoFR Title Desk (Counter #4)",
+      officialStatutoryFee: "₹0.00 (Statutorily Free under Section 4 of FRA 2006)",
+      maxAuthorizedFee: "₹0",
+      feeWarning: "Applying for Forest Rights is legally 100% FREE. No agent or official can demand any processing charge.",
+      statutoryDaysLimit: 60,
+      rtsaClause: "Forest Rights Act 2006 Section 6(1) Gram Sabha Statutory Determination"
+    },
+    cedarPolicyCode: `permit(principal, action == Action::"ApplyScheme", resource == Scheme::"FRA_RoFR_Land_Patta")
+when {
+    (principal.category == "ST" || principal.category == "All")
+};`,
+    officialGazetteRef: "The Gazette of India Extraordinary Part II Section 1 (Act No. 2 of 2007)",
+    faqs: [
+      {
+        q: "Can I apply for Forest Land Patta (Jungle Bhoomi) online?",
+        a: "NO. Under Section 6 of the Forest Rights Act 2006, claims can ONLY be initiated through a physical resolution of the village Gram Sabha. No online portal is authorized to accept claims."
+      },
+      {
+        q: "Is there any fee for obtaining the RoFR Land Title?",
+        a: "The statutory fee is ₹0 (Free of cost). Government survey and joint inspection are conducted at state expense."
+      }
+    ]
+  },
+  // 27. PM-Vidyalaxmi Central Education Loan Scheme - TOTALLY ONLINE
+  {
+    id: "PM_Vidyalaxmi_Loan",
+    title: "PM-Vidyalaxmi Higher Education Loan & Central Interest Subsidy Scheme",
+    shortCode: "PM-VIDYALAXMI",
+    type: "scholarship",
+    ministry: "Department of Higher Education, Ministry of Education, Government of India",
+    sponsoringBody: "Central Sector Direct Digital Credit Scheme",
+    level: "Central",
+    targetCategories: ["All", "General", "OBC", "SC", "ST", "EWS"],
+    maxIncome: 800000,
+    educationStages: ["UG", "PG", "PhD", "Professional"],
+    courseTypesAllowed: ["Regular Full-Time"],
+    managementQuotaAllowed: false,
+    benefitAmount: "Up to ₹10,000,000 Collateral-Free Education Loan + 100% Full Interest Subsidy during Moratorium",
+    benefitDescription: "Unified central digital portal for collateral-free, guarantor-free education loans up to ₹10 Lakhs for top 860 NIRF-ranked institutions, with 100% full interest subsidy for family incomes up to ₹8 Lakhs.",
+    officialPortalUrl: "https://pmvidyalaxmi.dos.gov.in",
+    portalName: "PM-Vidyalaxmi Central Portal",
+    portalSchemeCode: "PM-VIDYALAXMI-2026",
+    deadline: "Ongoing / Academic Session 2026-27",
+    daysRemaining: 120,
+    prerequisites: ["Income_Certificate", "Aadhaar_Card"],
+    mandatoryDocuments: [
+      "Aadhaar Number of Student (OTP e-KYC linked with active mobile)",
+      "Top-860 NIRF Ranked Institute Admission Offer Letter / Entrance Scorecard",
+      "Family Income Certificate issued by Revenue Authority (Income <= ₹8,00,000)",
+      "Class 10th & 12th Board Marksheets & Passing Certificates",
+      "Itemized Institutional Fee Structure from College Accounts Registrar",
+      "Student Solo Savings Bank Account Passbook (Aadhaar Seeded)"
+    ],
+    offlineSubmission: {
+      centerName: "100% Fully Online Digital Portal (Zero Bank Branch Visits Required)",
+      counterName: "Online Portal Direct Application Desk",
+      officialStatutoryFee: "₹0.00 (Free of Cost under Ministry of Education Guidelines)",
+      maxAuthorizedFee: "₹0",
+      feeWarning: "Application on PM-Vidyalaxmi portal is 100% free. No processing fee can be charged before loan sanction.",
+      statutoryDaysLimit: 15,
+      rtsaClause: "Ministry of Education PM-Vidyalaxmi Mission Guidelines 2024"
+    },
+    cedarPolicyCode: `permit(principal, action == Action::"ApplyScheme", resource == Scheme::"PM_Vidyalaxmi_Loan")
+when {
+    principal.annualFamilyIncome <= 800000 &&
+    principal.courseType == "Regular Full-Time"
+};`,
+    officialGazetteRef: "Cabinet Committee on Economic Affairs (CCEA) Approval OM F.No. 1-1/2024-U.5",
+    faqs: [
+      {
+        q: "Do I need to visit a physical bank branch for PM-Vidyalaxmi?",
+        a: "No! PM-Vidyalaxmi is 100% digital from application to sanction. Upload all documents on pmvidyalaxmi.dos.gov.in."
+      },
+      {
+        q: "What is the collateral or guarantor requirement for loans up to ₹7.5 Lakhs?",
+        a: "Zero collateral and zero third-party guarantee. Backed 75% by National Credit Guarantee Trustee Company (NCGTC)."
+      }
+    ]
   }
 ];
 

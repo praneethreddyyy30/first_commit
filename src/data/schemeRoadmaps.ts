@@ -23,6 +23,8 @@ export interface RoadmapInstitutionalItem {
   category: "Academic" | "Healthcare" | "Banking" | "Civic";
 }
 
+export type SchemeProcessMode = "TOTALLY_ONLINE" | "HYBRID" | "TOTALLY_OFFLINE";
+
 export interface RoadmapStage {
   stageNumber: number;
   stageName: string;
@@ -32,13 +34,17 @@ export interface RoadmapStage {
   description: string;
   actionItem: string;
   commonPitfall: string;
+  stageMode?: "ONLINE" | "OFFLINE" | "HYBRID";
+  portalLink?: string;
+  portalActionText?: string;
+  physicalDeskLocation?: string;
 }
 
-export interface SchemeRoadmap {
+export interface SchemeRoadmapBase {
   schemeId: string;
   schemeTitle: string;
   shortCode: string;
-  type: "scholarship" | "certificate" | "healthcare";
+  type: "scholarship" | "certificate" | "healthcare" | "land_rights" | "welfare_dbt" | "loan";
   categoryLabel: string;
   sponsoringBody: string;
   benefitHeadline: string;
@@ -47,6 +53,9 @@ export interface SchemeRoadmap {
   portalName: string;
   portalUrl: string;
   offlineCounter: string;
+  processMode?: SchemeProcessMode;
+  processModeLabel?: string;
+  processModeDescription?: string;
   tier1BaseIdentity: RoadmapBaseDocument[];
   tier2StatutoryCertificates: RoadmapStatutoryCertificate[];
   tier3Institutional: RoadmapInstitutionalItem[];
@@ -55,8 +64,267 @@ export interface SchemeRoadmap {
   rejectionChecklist: { check: string; resolution: string }[];
 }
 
+export interface SchemeRoadmap extends SchemeRoadmapBase {
+  processMode: SchemeProcessMode;
+  processModeLabel: string;
+  processModeDescription: string;
+}
+
 // 1. DEDICATED ROADMAPS FOR EVERY SCHEME & SERVICE
-export const SCHEME_ROADMAPS: Record<string, SchemeRoadmap> = {
+export const SCHEME_ROADMAPS: Record<string, SchemeRoadmapBase> = {
+  // --- TRIBAL FOREST RIGHTS ACT (RoFR / JUNGLE LAND PATTA) - TOTALLY OFFLINE ---
+  FRA_RoFR_Land_Patta: {
+    schemeId: "FRA_RoFR_Land_Patta",
+    schemeTitle: "Tribal Forest Rights Act (RoFR / Jungle Bhoomi Land Patta Title Deed)",
+    shortCode: "FRA-ROFR-PATTA",
+    type: "certificate",
+    categoryLabel: "Statutory Forest Land Ownership & Scheduled Tribe Rights",
+    sponsoringBody: "Ministry of Tribal Affairs & State Revenue & Forest Administration",
+    benefitHeadline: "Up to 10 Acres (4 Hectares) Permanent Heritable Registered Land Title Deed (Joint Patta)",
+    statutoryTimeLimit: "60 Days (FRA Statutory SLA under Gram Sabha determination)",
+    officialFee: "₹0.00 (Statutorily 100% Free under Section 4 of FRA 2006)",
+    portalName: "100% In-Person Physical Process (No Authorized Online Portal)",
+    portalUrl: "",
+    offlineCounter: "Gram Sabha Forest Rights Committee (FRC) Desk & Tahsil Land Records Counter #4",
+    processMode: "TOTALLY_OFFLINE",
+    processModeLabel: "🏛️ 100% In-Person Physical Process Only (Zero Online Portals)",
+    processModeDescription: "Under Section 6 of the Forest Rights Act 2006, claims for jungle land pattas can ONLY be initiated through physical Gram Sabha quorum resolutions and joint forest boundary walks. No online portal or private cyber cafe is legally authorized.",
+    tier1BaseIdentity: [
+      {
+        name: "Form A - Individual Forest Rights Claim Proforma",
+        requirement: "Physically signed by claimant and spouse with village elder witness signatures",
+        mandatory: true,
+      },
+      {
+        name: "Aadhaar Card (Claimant & Spouse)",
+        requirement: "Physical photocopies. Mandatory for Joint Title Deed under Section 4(4) of FRA",
+        mandatory: true,
+      },
+      {
+        name: "Ration Card or Voter ID (Pre-2005 Proof)",
+        requirement: "Proves physical residence in the forest-fringe hamlet prior to 13 December 2005",
+        mandatory: true,
+      },
+    ],
+    tier2StatutoryCertificates: [
+      {
+        certificateId: "ST_Caste_Certificate",
+        name: "Scheduled Tribe (ST) Certificate",
+        authority: "Tahsildar / Sub-Divisional Magistrate",
+        turnaround: "15 Days",
+        statutoryCost: "₹25",
+        validity: "Permanent",
+        keyCondition: "Required for ST category forest dwellers (OTFD require 75-year / 3-generation residency proof)",
+      },
+      {
+        certificateId: "Village_Elder_Panchanama",
+        name: "Forest Rights Committee (FRC) Field Panchanama",
+        authority: "Gram Sabha FRC Chairperson & Revenue Inspector",
+        turnaround: "30 Days",
+        statutoryCost: "₹0",
+        validity: "Permanent",
+        keyCondition: "Attestation of physical cultivation boundaries signed by neighboring forest plot holders",
+      },
+    ],
+    tier3Institutional: [
+      {
+        name: "Gram Sabha Quorum Resolution Copy",
+        authority: "Village Gram Sabha (Presided by FRC Chairperson)",
+        action: "Physical passing and recording of claim resolution in the Gram Panchayat register",
+        category: "Civic",
+      },
+      {
+        name: "Joint Forest Beat & Revenue Survey GPS Map",
+        authority: "Mandal Revenue Surveyor & Forest Beat Officer",
+        action: "Physical walk along forest land boundaries with hand-held GPS to draw demarcation map",
+        category: "Civic",
+      },
+    ],
+    bankingRequirement: "No bank account needed for land title issuance. Title deed is directly registered in the state revenue land record (Webland / Patta Chitta).",
+    stages: [
+      {
+        stageNumber: 1,
+        stageName: "Gram Sabha FRC Physical Claim Filing & Resolution",
+        actor: "Forest Rights Committee (FRC) / Village Gram Sabha",
+        officeType: "Gram Panchayat Hall (FRC Desk)",
+        timeline: "Day 1 – 15 (Scheduled Gram Sabha Meeting)",
+        description: "Submit Form A claim proforma physically before the 10–15 member village Forest Rights Committee along with elder witness statements and ancestral cultivation evidence.",
+        actionItem: "Ensure claim is entered into the Gram Sabha FRC physical register and obtain counter-signature on duplicate copy.",
+        commonPitfall: "Trusting online brokers or paying unauthorized fees. Forest rights claims are 100% statutorily free.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Gram Panchayat Hall / Community Hall — FRC Secretary Desk",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Joint Field Verification & GPS Boundary Demarcation",
+        actor: "Joint Inspection Team (Forest Beat Officer, Mandal Surveyor, FRC)",
+        officeType: "Forest Beat Office & Survey Field Camp",
+        timeline: "Within 30 Days",
+        description: "Forest Beat Officer, Mandal Revenue Surveyor, and FRC members physically walk the plot boundaries, record GPS coordinates, and prepare spot Panchanama with adjacent farmers.",
+        actionItem: "Be physically present on the forest land parcel with neighboring cultivators to sign the spot Panchanama.",
+        commonPitfall: "Absence on inspection day leading to adverse remarks or disputed boundary entries.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Forest Beat Camp & Demarcated Land Parcel (On-Site Physical Inspection)",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Sub-Divisional Level Committee (SDLC) Scrutiny",
+        actor: "Sub-Divisional Magistrate (SDM / RDO) & Divisional Forest Officer (DFO)",
+        officeType: "Revenue Divisional Officer (RDO) Court",
+        timeline: "Within 15 Days",
+        description: "SDLC convenes statutory hearing to scrutinize Gram Sabha resolutions, survey dockets, and examine any boundary objections filed by the Forest Department.",
+        actionItem: "Monitor RDO office notice board for SDLC resolution docket and attend hearing if called.",
+        commonPitfall: "Failure to respond to SDLC query within the statutory 60-day objection period.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Revenue Divisional Officer (RDO / Sub-Collector) Office — SDLC Section Counter #2",
+      },
+      {
+        stageNumber: 4,
+        stageName: "District Level Committee (DLC) Final Approval & Joint Patta Distribution",
+        actor: "District Collector / Magistrate (Chairperson DLC)",
+        officeType: "District Collectorate Land Title Section",
+        timeline: "Within 60 Days (Statutory FRA Guarantee)",
+        description: "DLC issues final statutory sanction order; District Collector signs and stamps the registered Joint Land Title Deed (bearing names of both husband and wife) and updates revenue land records.",
+        actionItem: "Collect physical embossed RoFR Land Title Deed and Forest Land Revenue Passbook.",
+        commonPitfall: "Omission of spouse's name on title deed. Under FRA Section 4(4), joint registration of wife and husband is legally mandatory.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "District Collectorate — RoFR Land Records Counter #4 & Tribal Welfare Desk",
+      },
+    ],
+    rejectionChecklist: [
+      {
+        check: "Are both husband and wife listed as joint claimants on Form A?",
+        resolution: "Section 4(4) of FRA mandates joint title deed in the name of both spouses unless the claimant is single.",
+      },
+      {
+        check: "Does the claimant have evidence of forest land occupation prior to 13 December 2005?",
+        resolution: "Submit old forest encroachment challans, elder statements, or voter identity records showing residence prior to cut-off.",
+      },
+    ],
+  },
+
+  // --- PM-VIDYALAXMI HIGHER EDUCATION LOAN - TOTALLY ONLINE ---
+  PM_Vidyalaxmi_Loan: {
+    schemeId: "PM_Vidyalaxmi_Loan",
+    schemeTitle: "PM-Vidyalaxmi Higher Education Loan & Central Interest Subsidy Scheme",
+    shortCode: "PM-VIDYALAXMI",
+    type: "loan",
+    categoryLabel: "Central Collateral-Free Education Loan & Full Interest Subsidy",
+    sponsoringBody: "Department of Higher Education, Ministry of Education, Government of India",
+    benefitHeadline: "Up to ₹10,00,000 Collateral-Free Loan + 100% Full Interest Subsidy during Moratorium",
+    statutoryTimeLimit: "15 Days (Direct Bank LOS SLA)",
+    officialFee: "₹0.00 (Statutorily Free Processing for loans up to ₹10 Lakhs)",
+    portalName: "PM-Vidyalaxmi Unified Portal",
+    portalUrl: "https://pmvidyalaxmi.dos.gov.in",
+    offlineCounter: "Zero Physical Branch Visits (100% Digital Execution via National Portal)",
+    processMode: "TOTALLY_ONLINE",
+    processModeLabel: "🌐 100% Fully Online Digital Portal (Zero Bank Branch Visits)",
+    processModeDescription: "End-to-end digital processing through the PM-Vidyalaxmi central portal. Registration, NIRF top-860 college seat validation, bank Loan Origination System (LOS) underwriting, and DigiLocker credit occur 100% electronically with zero branch visits.",
+    tier1BaseIdentity: [
+      {
+        name: "Aadhaar Card (Student & Co-borrower/Parent)",
+        requirement: "Active mobile linked for instant DigiLocker e-KYC and digital Aadhaar e-Sign",
+        mandatory: true,
+      },
+      {
+        name: "PAN Card (Student & Parent)",
+        requirement: "Automated digital credit bureau check (CIBIL/Equifax) via bank LOS API",
+        mandatory: true,
+      },
+      {
+        name: "DigiLocker 10th & 12th Academic Marksheets",
+        requirement: "Direct digital pull into PM-Vidyalaxmi application form",
+        mandatory: true,
+      },
+    ],
+    tier2StatutoryCertificates: [
+      {
+        certificateId: "Income_Certificate",
+        name: "Income Certificate (Current FY 2026-27)",
+        authority: "Tahsildar / Sub-Divisional Magistrate",
+        turnaround: "15 Days",
+        statutoryCost: "₹25",
+        validity: "Current FY",
+        keyCondition: "Mandatory for 100% Central Interest Subsidy during moratorium (Family income ≤ ₹8,00,000)",
+      },
+      {
+        certificateId: "College_Admission_Letter",
+        name: "Admission Offer / Counseling Allotment Letter",
+        authority: "NIRF Top 860 Ranked Institution / Central University",
+        turnaround: "Instant",
+        statutoryCost: "₹0",
+        validity: "Current Academic Session",
+        keyCondition: "Institution must be listed on the PM-Vidyalaxmi approved NIRF list with active AISHE code",
+      },
+    ],
+    tier3Institutional: [
+      {
+        name: "Institutional Fee Structure Proforma",
+        authority: "College Finance Officer / Registrar",
+        action: "Itemized breakdown of tuition fees, hostel charges, exam fees, and book allowance",
+        category: "Academic",
+      },
+      {
+        name: "Bank Aadhaar e-Sign & Digital Mandate",
+        authority: "Participating Scheduled Commercial Bank (SBI, Canara, PNB, BoB, etc.)",
+        action: "Digital execution of loan agreement via Aadhaar OTP e-Sign; zero physical stamp paper",
+        category: "Banking",
+      },
+    ],
+    bankingRequirement: "Savings bank account in student's name for maintenance allowance; institutional college account for direct RTGS tuition credit.",
+    stages: [
+      {
+        stageNumber: 1,
+        stageName: "Unified Portal Registration & DigiLocker e-KYC",
+        actor: "Student Applicant",
+        officeType: "PM-Vidyalaxmi Digital Portal",
+        timeline: "Instant (30 Mins)",
+        description: "Register on pmvidyalaxmi.dos.gov.in using Aadhaar OTP. Pull academic certificates, admission allotment, and income certificate directly via DigiLocker. Select up to 3 preferred scheduled banks.",
+        actionItem: "Fill Common Education Loan Application Form (CELAF) and attach digital fee structure.",
+        commonPitfall: "Applying through third-party unverified loan aggregators. Use strictly the official government portal.",
+        stageMode: "ONLINE",
+        portalLink: "https://pmvidyalaxmi.dos.gov.in",
+        portalActionText: "Open PM-Vidyalaxmi Portal",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Automated Bank LOS Evaluation & Instant In-Principle Sanction",
+        actor: "Scheduled Commercial Bank (Digital Underwriting Engine)",
+        officeType: "Centralized Bank Loan Origination System (LOS)",
+        timeline: "Within 7–15 Days",
+        description: "Participating bank processes CELAF application electronically through automated API checks. If admission is within NIRF top 860 institutions, loan up to ₹10 Lakhs is sanctioned collateral-free and guarantor-free.",
+        actionItem: "Review sanction letter on portal dashboard and complete Aadhaar OTP e-Sign.",
+        commonPitfall: "Submitting fee quote with unapproved capitation or private hostel charges.",
+        stageMode: "ONLINE",
+        portalLink: "https://pmvidyalaxmi.dos.gov.in",
+        portalActionText: "Track Digital Bank Sanction",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Direct Electronic Fee Disbursal & Central Subsidy Tagging",
+        actor: "Disbursal Bank & Canara Bank Central Subsidy Nodal Desk",
+        officeType: "Electronic Treasury & Core Banking RTGS",
+        timeline: "Direct Electronic Disbursement to College",
+        description: "Tuition fee is directly credited via RTGS to the institution's verified college bank account. The loan is automatically registered under the Central Sector Interest Subsidy (CSIS) scheme for zero interest during course tenure + 1 year moratorium.",
+        actionItem: "Download digital fee disbursement confirmation voucher and submit copy to college accounts section.",
+        commonPitfall: "Providing invalid institutional bank IFSC or college AISHE code on application form.",
+        stageMode: "ONLINE",
+        portalLink: "https://pmvidyalaxmi.dos.gov.in",
+        portalActionText: "Download Fee Disbursal Voucher",
+      },
+    ],
+    rejectionChecklist: [
+      {
+        check: "Is your institution ranked in the top 860 under NIRF or is it a designated national institute?",
+        resolution: "Verify college status on the PM-Vidyalaxmi portal NIRF search tool before submitting CELAF.",
+      },
+      {
+        check: "Is your family income under ₹8,00,000 for 100% interest subsidy eligibility?",
+        resolution: "Upload a valid Revenue Authority Income Certificate issued in the current financial year to claim interest waiver.",
+      },
+    ],
+  },
+
   // --- MEDICAL & HEALTHCARE EXPENSES ---
   Ayushman_PMJAY: {
     schemeId: "Ayushman_PMJAY",
@@ -1982,45 +2250,483 @@ export const SCHEME_ROADMAPS: Record<string, SchemeRoadmap> = {
 // 2. HELPER: Get Dedicated Roadmap for Any Scheme
 export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRoadmap {
   const schemeId = typeof schemeOrId === "string" ? schemeOrId : schemeOrId.id;
+  const scheme = SCHEMES_DATABASE.find((s) => s.id === schemeId);
 
-  if (SCHEME_ROADMAPS[schemeId]) {
-    return SCHEME_ROADMAPS[schemeId];
+  // If already explicitly configured in SCHEME_ROADMAPS
+  const existing = SCHEME_ROADMAPS[schemeId];
+  if (existing) {
+    // Derive mode if not explicitly set
+    const processMode: SchemeProcessMode = existing.processMode || (
+      existing.type === "loan" || existing.schemeId.includes("Vidyalaxmi") || existing.schemeId.includes("Pragati") || existing.schemeId.includes("Ishaan")
+        ? "TOTALLY_ONLINE"
+        : existing.schemeId.includes("FRA") || existing.schemeId.includes("Jungle") || existing.schemeId.includes("RoFR")
+        ? "TOTALLY_OFFLINE"
+        : "HYBRID"
+    );
+
+    const processModeLabel = existing.processModeLabel || (
+      processMode === "TOTALLY_ONLINE"
+        ? "🌐 100% Fully Online Digital Portal (Zero Physical Visits)"
+        : processMode === "TOTALLY_OFFLINE"
+        ? "🏛️ 100% In-Person Physical Process Only (Zero Online Portals)"
+        : "⚡ Hybrid Workflow: Online Submission + Local Field Verification Desks"
+    );
+
+    const processModeDescription = existing.processModeDescription || (
+      processMode === "TOTALLY_ONLINE"
+        ? "All application steps, e-KYC, institutional authentication, and benefit release occur 100% electronically on official digital portals."
+        : processMode === "TOTALLY_OFFLINE"
+        ? "Statutorily governed by in-person Gram Sabha quorum resolutions, physical field boundary surveys, and Revenue Court verification. No online portal is legally authorized."
+        : "Initial application is submitted via official portal or MeeSeva/CSC kiosk, followed by mandatory in-person verification at designated local desks."
+    );
+
+    // Ensure all stages have mode, portal links, and physical desk locations
+    const enrichedStages: RoadmapStage[] = existing.stages.map((stage) => {
+      let stageMode = stage.stageMode;
+      let portalLink = stage.portalLink;
+      let portalActionText = stage.portalActionText;
+      let physicalDeskLocation = stage.physicalDeskLocation;
+
+      if (!stageMode) {
+        if (processMode === "TOTALLY_OFFLINE") {
+          stageMode = "OFFLINE";
+          physicalDeskLocation = physicalDeskLocation || stage.officeType || existing.offlineCounter;
+        } else if (processMode === "TOTALLY_ONLINE") {
+          stageMode = "ONLINE";
+          portalLink = portalLink || existing.portalUrl;
+          portalActionText = portalActionText || "Open Stage Portal Action";
+        } else {
+          // HYBRID
+          const isOnlineStep = stage.stageNumber === 1 || stage.officeType?.toLowerCase().includes("online") || stage.officeType?.toLowerCase().includes("portal") || stage.actor?.toLowerCase().includes("pfms");
+          stageMode = isOnlineStep ? "ONLINE" : "OFFLINE";
+          if (isOnlineStep && existing.portalUrl) {
+            portalLink = portalLink || existing.portalUrl;
+            portalActionText = portalActionText || "Open Online Portal";
+          }
+          if (stageMode === "OFFLINE") {
+            physicalDeskLocation = physicalDeskLocation || stage.officeType || existing.offlineCounter;
+          }
+        }
+      }
+
+      return {
+        ...stage,
+        stageMode,
+        portalLink,
+        portalActionText,
+        physicalDeskLocation,
+      };
+    });
+
+    return {
+      ...existing,
+      processMode,
+      processModeLabel,
+      processModeDescription,
+      stages: enrichedStages,
+    };
   }
 
   // Fallback builder for any other scheme in SCHEMES_DATABASE
-  const scheme = SCHEMES_DATABASE.find((s) => s.id === schemeId);
   const title = scheme ? scheme.title : schemeId;
   const type = scheme ? scheme.type : "scholarship";
   const portalName = scheme ? scheme.portalName : "National Scholarship Portal";
   const portalUrl = scheme ? scheme.officialPortalUrl : "https://scholarships.gov.in";
+  const offlineCounter = scheme?.offlineSubmission.centerName || "Common Service Center (CSC)";
+
+  const isForestOrLandRights = schemeId.includes("FRA") || schemeId.includes("Jungle") || schemeId.includes("RoFR") || (scheme?.type as string) === "land_rights";
+  const isEducationLoan = schemeId.includes("Loan") || schemeId.includes("Vidyalaxmi") || (scheme?.type as string) === "loan" || (scheme?.title || "").toLowerCase().includes("loan");
+  const isDirectCash =
+    schemeId.includes("Pudhumai") ||
+    schemeId.includes("Tamil_Pudhalvan") ||
+    schemeId.includes("Amma_Vodi") ||
+    schemeId.includes("Pension") ||
+    schemeId.includes("Cheyutha") ||
+    schemeId.includes("Aasara") ||
+    schemeId.includes("KMUT") ||
+    schemeId.includes("Marriage") ||
+    schemeId.includes("Vahana") ||
+    schemeId.includes("Rythu") ||
+    schemeId.includes("Kalaignar");
+
+  let processMode: SchemeProcessMode = "HYBRID";
+  let processModeLabel = "⚡ Hybrid Workflow: Online Submission + Local Field Verification Desks";
+  let processModeDescription = "Initial application is submitted via official portal or MeeSeva/CSC kiosk, followed by mandatory in-person verification at designated local desks.";
+
+  if (isForestOrLandRights) {
+    processMode = "TOTALLY_OFFLINE";
+    processModeLabel = "🏛️ 100% In-Person Physical Process Only (Zero Online Portals)";
+    processModeDescription = "Statutorily governed by Section 6 of the Forest Rights Act 2006. Claims require physical Gram Sabha quorum resolutions, joint on-site boundary surveys, and verification by the SDLC and District Collector. No private online portal is legally authorized.";
+  } else if (isEducationLoan) {
+    processMode = "TOTALLY_ONLINE";
+    processModeLabel = "🌐 100% Fully Online Digital Portal (Zero Bank Branch Visits)";
+    processModeDescription = "End-to-end digital processing through official portal. Student registration, institutional fee validation, bank Loan Origination System (LOS) underwriting, and fund disbursement occur 100% electronically with zero branch visits.";
+  } else if (!portalUrl && offlineCounter) {
+    processMode = "TOTALLY_OFFLINE";
+    processModeLabel = "🏛️ 100% In-Person Physical Process Only (Offline Desks)";
+    processModeDescription = "This scheme is administered statutorily through physical counters with zero online submission.";
+  }
+
+  // Dynamic Stages Pipeline according to statutory category
+  let dynamicStages: RoadmapStage[] = [];
+
+  if (isForestOrLandRights) {
+    // 4 STAGES: Jungle / Forest Rights Act
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Gram Sabha FRC Physical Claim Filing & Resolution",
+        actor: "Forest Rights Committee (FRC) / Village Gram Sabha",
+        officeType: "Gram Panchayat Hall (FRC Desk)",
+        timeline: "Day 1 – 15 (Scheduled Gram Sabha Meeting)",
+        description: "Submit Form A claim proforma physically before the village Forest Rights Committee along with elder witness statements and traditional cultivation evidence.",
+        actionItem: "Ensure claim is entered into the Gram Sabha FRC register and obtain counter-signature.",
+        commonPitfall: "Trusting online brokers or paying unauthorized fees. Forest rights claims are 100% statutorily free.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Gram Panchayat Hall — FRC Secretary Desk",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Joint Field Verification & GPS Boundary Demarcation",
+        actor: "Joint Inspection Team (Forest Beat Officer, Mandal Surveyor, FRC)",
+        officeType: "Forest Beat Office & Survey Field Camp",
+        timeline: "Within 30 Days",
+        description: "Forest Beat Officer, Mandal Revenue Surveyor, and FRC members physically walk the plot boundaries, record GPS coordinates, and prepare spot Panchanama.",
+        actionItem: "Be physically present on the forest land parcel with neighboring cultivators to attest field boundaries.",
+        commonPitfall: "Absence on inspection day leading to adverse remarks or disputed boundary entries.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Forest Beat Camp & Demarcated Land Parcel",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Sub-Divisional Level Committee (SDLC) Scrutiny",
+        actor: "Sub-Divisional Magistrate (SDM / RDO) & Forest Division Officer",
+        officeType: "Revenue Divisional Officer (RDO) Court",
+        timeline: "Within 15 Days",
+        description: "SDLC convenes statutory hearing to scrutinize Gram Sabha resolutions, survey dockets, and examine any boundary objections.",
+        actionItem: "Monitor RDO office notice board for SDLC resolution docket and attend hearing if called.",
+        commonPitfall: "Failure to respond to SDLC query within the statutory 60-day objection period.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Revenue Divisional Officer (RDO / Sub-Collector) Office — SDLC Section Counter #2",
+      },
+      {
+        stageNumber: 4,
+        stageName: "District Level Committee (DLC) Final Approval & Joint Patta Distribution",
+        actor: "District Collector / Magistrate (Chairperson DLC)",
+        officeType: "District Collectorate Land Title Section",
+        timeline: "Within 60 Days (Statutory FRA Guarantee)",
+        description: "DLC issues final statutory sanction order; District Collector signs and stamps the registered Joint Land Title Deed (bearing names of both husband and wife).",
+        actionItem: "Collect physical embossed RoFR Land Title Deed and Forest Land Revenue Passbook.",
+        commonPitfall: "Omission of spouse's name on title deed. Under FRA Section 4(4), joint registration is legally mandatory.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "District Collectorate — RoFR Land Records Counter #4",
+      },
+    ];
+  } else if (isEducationLoan) {
+    // 3 STAGES: Central Education Loan
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Unified Portal Registration & DigiLocker e-KYC",
+        actor: "Student Applicant",
+        officeType: "PM-Vidyalaxmi Digital Portal",
+        timeline: "Instant (30 Mins)",
+        description: `Register on ${portalName} (${portalUrl}) using Aadhaar OTP. Pull academic certificates and income certificate directly via DigiLocker.`,
+        actionItem: "Fill Common Education Loan Application Form (CELAF) and attach digital fee structure.",
+        commonPitfall: "Applying through third-party unverified loan aggregators. Use strictly the official government portal.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Open Central Loan Portal",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Automated Bank LOS Evaluation & Digital Sanction",
+        actor: "Scheduled Commercial Bank (Digital Underwriting Engine)",
+        officeType: "Centralized Bank Loan Origination System (LOS)",
+        timeline: "Within 7–15 Days",
+        description: "Participating bank processes CELAF application electronically through automated API checks and grants collateral-free in-principle sanction.",
+        actionItem: "Review sanction letter on portal dashboard and complete Aadhaar OTP e-Sign.",
+        commonPitfall: "Submitting fee quote with unapproved capitation or private hostel charges.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Track Digital Bank Sanction",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Direct Electronic Fee Disbursal & Central Subsidy Tagging",
+        actor: "Disbursal Bank & Canara Bank Central Subsidy Nodal Desk",
+        officeType: "Electronic Treasury & Core Banking RTGS",
+        timeline: "Direct Electronic Disbursement to College",
+        description: "Tuition fee is directly credited via RTGS to the institution's verified college bank account, and enrolled for full interest subsidy during moratorium.",
+        actionItem: "Download digital fee disbursement confirmation voucher and submit copy to college accounts section.",
+        commonPitfall: "Providing invalid institutional bank IFSC or college AISHE code on application form.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Download Fee Disbursal Voucher",
+      },
+    ];
+  } else if (isDirectCash) {
+    // 3 STAGES: State Direct Benefit Transfers
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Aadhaar e-KYC & Beneficiary Enrollment",
+        actor: "Beneficiary / Village Volunteer",
+        officeType: "Grama / Ward Sachivalayam or School",
+        timeline: "Day 1",
+        description: `Online registration with biometric Aadhaar e-KYC and student/household verification on ${portalName}.`,
+        actionItem: "Ensure mobile number is linked to Aadhaar for OTP verification.",
+        commonPitfall: "Spelling variation between ration card and bank passbook.",
+        stageMode: "HYBRID",
+        portalLink: portalUrl,
+        portalActionText: "Open Beneficiary Portal",
+        physicalDeskLocation: "Grama / Ward Sachivalayam (Village Secretariat Desk #1)",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Social Audit & Field Eligibility Scrutiny",
+        actor: "Ward Secretary / CDPO / Field Officer",
+        officeType: "Local Civic Directorate / Municipal Office",
+        timeline: "Within 10 Days",
+        description: "Field officer verifies government school attendance (6–12), land records, and electricity meter limits.",
+        actionItem: "Review draft beneficiary social audit list displayed at local secretariat.",
+        commonPitfall: "Failure to raise objection during social audit display window.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Village Secretariat Public Notice Board & Ward Secretary Desk",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Direct Electronic Treasury Disbursal (e-Kuber DBT)",
+        actor: "State Treasury Directorate",
+        officeType: "State Electronic Treasury / RBI APBS",
+        timeline: "Direct Monthly / Scheduled Credit",
+        description: "Funds are released directly into the verified Aadhaar-seeded bank account.",
+        actionItem: "Check bank SMS confirmation or verify account credit on portal.",
+        commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Check Treasury Credit Status",
+      },
+    ];
+  } else if (type === "certificate") {
+    // 4 STAGES: Statutory Revenue Certificates
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Citizen Online / MeeSeva Submission",
+        actor: "Citizen / CSC Operator",
+        officeType: "MeeSeva / Village CSC Desk",
+        timeline: "Day 1",
+        description: `Submit application on ${portalName} with self-declaration affidavit and ancestral proof.`,
+        actionItem: "Obtain digital application transaction number (e.g., AP/TN Application ID).",
+        commonPitfall: "Submitting without father's or ancestral revenue record.",
+        stageMode: "HYBRID",
+        portalLink: portalUrl,
+        portalActionText: "Open Citizen Portal",
+        physicalDeskLocation: offlineCounter || "MeeSeva / e-Sevai / CSC Kiosk",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Village Field Inquiry & Local Spot Verification",
+        actor: "Village Revenue Officer (VRO / VAO)",
+        officeType: "Grama Sachivalayam / Village Revenue Secretariat",
+        timeline: "Within 5–7 Days",
+        description: "Field officer conducts local inquiry, verifies native residence and community records.",
+        actionItem: "Be available during village spot verification or keep neighbor witnesses informed.",
+        commonPitfall: "Applicant not available at registered permanent residential address.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Village Revenue Secretariat — VRO Inquiry Desk",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Revenue Inspector Statutory Scrutiny",
+        actor: "Revenue Inspector (RI)",
+        officeType: "Mandal / Firka Revenue Office",
+        timeline: "Within 3 Days",
+        description: "Supervising officer reviews VRO field inquiry report and legal gazette records.",
+        actionItem: "Check online portal status for RI endorsement clearance.",
+        commonPitfall: "Land/Income discrepancies between revenue survey records and affidavit.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Mandal Revenue Office — Revenue Inspector (RI) Desk",
+      },
+      {
+        stageNumber: 4,
+        stageName: "Digital Signing & Certificate Issuance",
+        actor: "Tahsildar / Mandal Revenue Officer (MRO)",
+        officeType: "Tahsil / Taluk Office",
+        timeline: "Within 15 Days (RTSA Guarantee)",
+        description: "Competent revenue authority digitally signs the barcoded, QR-coded statutory certificate.",
+        actionItem: "Download official digitally signed PDF from citizen portal or MeeSeva kiosk.",
+        commonPitfall: "Expired link or not downloading within the statutory validity window.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Download Official Certificate PDF",
+      },
+    ];
+  } else if (type === "healthcare") {
+    // 4 STAGES: Healthcare
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Ayushman Kiosk e-KYC & Verification",
+        actor: "Ayushman Mitra / Arogya Mithra",
+        officeType: "Empaneled Hospital Helpdesk",
+        timeline: "Instant (15 mins)",
+        description: "Verify beneficiary entitlement on SECC / NFSA database using Aadhaar or Ration Card.",
+        actionItem: "Generate Golden Health PVC Card on spot at zero charge.",
+        commonPitfall: "Going to an un-empaneled private nursing home.",
+        stageMode: "HYBRID",
+        portalLink: portalUrl,
+        portalActionText: "Open Beneficiary Portal",
+        physicalDeskLocation: offlineCounter || "Empaneled Hospital Ayushman Helpdesk",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Clinical Diagnosis & Specialist Prescription",
+        actor: "Empaneled Specialist Doctor",
+        officeType: "Hospital Inpatient Department",
+        timeline: "Day 1 of Admission",
+        description: "Doctor diagnoses medical condition and prescribes an empaneled surgical or medical package.",
+        actionItem: "Collect clinical diagnostic scans and specialist admission requisition.",
+        commonPitfall: "Paying cash for diagnostic scans at empaneled hospital.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Hospital OPD / Specialist Clinical Consulting Room",
+      },
+      {
+        stageNumber: 3,
+        stageName: "State Health Agency (SHA) Pre-Authorization",
+        actor: "State Health Agency / TPA Medical Auditor",
+        officeType: "Online National Health Authority TMS Portal",
+        timeline: "Within 2 to 4 Hours",
+        description: "Hospital uploads clinical reports to NHA portal for government treatment sanction.",
+        actionItem: "Ensure hospital initiates TMS claim before ICU admission or surgery.",
+        commonPitfall: "Hospital asking for cash deposit as security deposit (strictly illegal).",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Track Hospital TMS Pre-Auth",
+      },
+      {
+        stageNumber: 4,
+        stageName: "100% Cashless Medical Care & Biometric Discharge",
+        actor: "Hospital Medical Team & Pharmacy",
+        officeType: "Empaneled Hospital Discharge Desk",
+        timeline: "Duration of Treatment + 15 Days Meds",
+        description: "Patient receives complete cashless surgery, medications, implants, and 15 days of take-home medicine.",
+        actionItem: "Sign biometric discharge voucher only after full treatment completion.",
+        commonPitfall: "Leaving without collecting mandatory 15-day post-care medication pack.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Hospital Patient Billing & Discharge Desk #3",
+      },
+    ];
+  } else {
+    // 5 STAGES: Central / Merit Scholarships
+    dynamicStages = [
+      {
+        stageNumber: 1,
+        stageName: "Pre-Flight Document Gathering & Online Submission",
+        actor: "Applicant (Student)",
+        officeType: "Online National Scholarship Portal (NSP)",
+        timeline: "Before Portal Deadline",
+        description: `Submit online application on ${portalName} with Aadhaar OTP authentication.`,
+        actionItem: "Download and print application submission acknowledgment.",
+        commonPitfall: "Uploading blurry or unreadable scanned copies.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Open Application Portal",
+      },
+      {
+        stageNumber: 2,
+        stageName: "First-Tier Institutional Bonafide Verification",
+        actor: "Institute Nodal Officer (INO) / College Principal",
+        officeType: "College / University Academic Office",
+        timeline: "Within 10 Days of Submission",
+        description: "College verification officer cross-verifies student admission, attendance, and fee structure.",
+        actionItem: "Submit physical copies to verification clerk immediately after online entry.",
+        commonPitfall: "Delaying physical document submission past the institute closing date.",
+        stageMode: "HYBRID",
+        physicalDeskLocation: "College Academic Section — INO Verification Desk (Room #102)",
+      },
+      {
+        stageNumber: 3,
+        stageName: "District Welfare Officer (DNO) Scrutiny",
+        actor: "District Welfare / Social Justice Officer",
+        officeType: "District Collectorate Welfare Wing",
+        timeline: "15 Days",
+        description: "Competent district authority verifies caste, income authenticity, and student quota.",
+        actionItem: "Monitor online status weekly; address any defective notice promptly.",
+        commonPitfall: "Failing to rectify defective notices within the 72-hour window.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Check DNO Scrutiny Status",
+      },
+      {
+        stageNumber: 4,
+        stageName: "State Directorate (SNO) Merit Sanction",
+        actor: "State Nodal Officer (SNO)",
+        officeType: "State Higher Education / Tribal Directorate",
+        timeline: "Within 20 Days",
+        description: "State directorate creates verified merit list and generates financial sanction orders.",
+        actionItem: "Track application status on portal for SNO sanction order number.",
+        commonPitfall: "Institute not recognized under AISHE code.",
+        stageMode: "ONLINE",
+        portalLink: portalUrl,
+        portalActionText: "Track SNO Sanction Order",
+      },
+      {
+        stageNumber: 5,
+        stageName: "Direct Disbursal via PFMS / APBS",
+        actor: "Public Financial Management System (PFMS)",
+        officeType: "Central Treasury / National Payments Gateway",
+        timeline: "Direct Disbursal",
+        description: "Scholarship grant is credited directly into the verified Aadhaar-seeded bank account.",
+        actionItem: "Verify credit via bank SMS or download official payment voucher.",
+        commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
+        stageMode: "ONLINE",
+        portalLink: "https://pfms.nic.in",
+        portalActionText: "Track PFMS Payment Status",
+      },
+    ];
+  }
 
   return {
     schemeId,
     schemeTitle: title,
     shortCode: scheme?.shortCode || schemeId,
     type,
-    categoryLabel: type === "healthcare" ? "Health Assurance Scheme" : type === "certificate" ? "Statutory Revenue Service" : "Central Welfare Scholarship",
+    categoryLabel:
+      isForestOrLandRights
+        ? "Statutory Forest Land Ownership & Scheduled Tribe Rights"
+        : isEducationLoan
+        ? "Central Collateral-Free Education Loan & Full Interest Subsidy"
+        : type === "healthcare"
+        ? "Health Assurance Scheme"
+        : type === "certificate"
+        ? "Statutory Revenue Service"
+        : "Central Welfare Scholarship",
     sponsoringBody: scheme?.sponsoringBody || scheme?.ministry || "Government of India",
     benefitHeadline: scheme?.benefitAmount || "Financial Assistance / Fee Exemption",
     statutoryTimeLimit: scheme?.offlineSubmission.statutoryDaysLimit ? `${scheme.offlineSubmission.statutoryDaysLimit} Days SLA` : "30 Days standard processing",
     officialFee: scheme?.offlineSubmission.officialStatutoryFee || "₹0.00",
     portalName,
     portalUrl,
-    offlineCounter: scheme?.offlineSubmission.centerName || "Common Service Center (CSC)",
+    offlineCounter,
+    processMode,
+    processModeLabel,
+    processModeDescription,
     tier1BaseIdentity: [
       {
-        name: "Aadhaar Card of Applicant",
-        requirement: "Active mobile linked for OTP e-KYC authentication",
+        name: isForestOrLandRights ? "Form A - Forest Rights Claim Proforma" : "Aadhaar Card of Applicant",
+        requirement: isForestOrLandRights ? "Physically signed by claimant and spouse with village elder witnesses" : "Active mobile linked for OTP e-KYC authentication",
         mandatory: true,
       },
       {
-        name: "Class 10th / 12th Certificate or Birth Certificate",
-        requirement: "Official verification of date of birth and legal name spelling",
+        name: isForestOrLandRights ? "Pre-2005 Forest Residency Proof (Voter ID / Ration Card)" : "Class 10th / 12th Certificate or Birth Certificate",
+        requirement: isForestOrLandRights ? "Physical proof of occupation in forest hamlet before 13 Dec 2005" : "Official verification of date of birth and legal name spelling",
         mandatory: true,
       },
       {
-        name: "Active Mobile & Email",
-        requirement: "For OTP verification and portal tracking notifications",
+        name: isForestOrLandRights ? "Aadhaar Card of Claimant & Spouse (Joint Patta)" : "Active Mobile & Email",
+        requirement: isForestOrLandRights ? "Mandatory for joint title deed under FRA Section 4(4)" : "For OTP verification and portal tracking notifications",
         mandatory: true,
       },
     ],
@@ -2038,223 +2744,53 @@ export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRo
     }),
     tier3Institutional: [
       {
-        name: type === "healthcare" ? "Hospital Doctor Referral & Estimate" : "College Bonafide Student Certificate",
-        authority: type === "healthcare" ? "Government Medical Superintendent" : "College Principal / Registrar",
-        action: "Official verification on institutional letterhead",
-        category: type === "healthcare" ? "Healthcare" : "Academic",
+        name: isForestOrLandRights
+          ? "Gram Sabha Quorum Resolution"
+          : type === "healthcare"
+          ? "Hospital Doctor Referral & Estimate"
+          : "College Bonafide Student Certificate",
+        authority: isForestOrLandRights
+          ? "Village Gram Sabha (Presided by FRC Chairperson)"
+          : type === "healthcare"
+          ? "Government Medical Superintendent"
+          : "College Principal / Registrar",
+        action: "Official verification on institutional letterhead / register",
+        category: type === "healthcare" ? "Healthcare" : isForestOrLandRights ? "Civic" : "Academic",
       },
       {
-        name: "Aadhaar NPCI DBT Bank Account",
-        authority: "Nationalized Bank Branch",
-        action: "Account must be seeded on NPCI DBT Mapper for electronic fund transfer",
-        category: "Banking",
+        name: isForestOrLandRights ? "Joint Forest Beat & Revenue Survey GPS Map" : "Aadhaar NPCI DBT Bank Account",
+        authority: isForestOrLandRights ? "Mandal Revenue Surveyor & Forest Beat Officer" : "Nationalized Bank Branch",
+        action: isForestOrLandRights
+          ? "Demarcation of physical boundaries signed on field Panchanama"
+          : "Account must be seeded on NPCI DBT Mapper for electronic fund transfer",
+        category: isForestOrLandRights ? "Civic" : "Banking",
       },
     ],
-    bankingRequirement: "Aadhaar seeded bank account on NPCI mapper for Direct Benefit Transfer.",
-    stages: (() => {
-      // 1. STATUTORY REVENUE CERTIFICATES (4 Stages across Revenue Desks)
-      if (type === "certificate") {
-        return [
+    bankingRequirement: isForestOrLandRights
+      ? "No bank account required. Title deed is registered directly in state land records."
+      : "Aadhaar seeded bank account on NPCI mapper for Direct Benefit Transfer.",
+    stages: dynamicStages,
+    rejectionChecklist: isForestOrLandRights
+      ? [
           {
-            stageNumber: 1,
-            stageName: "Citizen Online / MeeSeva Submission",
-            actor: "Citizen / CSC Operator",
-            officeType: "MeeSeva / Village CSC Desk",
-            timeline: "Day 1",
-            description: `Submit application on ${portalName} with self-declaration affidavit and ancestral proof.`,
-            actionItem: "Obtain digital application transaction number (e.g., AP/TN Application ID).",
-            commonPitfall: "Submitting without father's or ancestral revenue record.",
+            check: "Are both husband and wife listed as joint claimants on Form A?",
+            resolution: "Section 4(4) of FRA mandates joint title deed in the name of both spouses unless the claimant is single.",
           },
           {
-            stageNumber: 2,
-            stageName: "Village Field Inquiry & Local Spot Verification",
-            actor: "Village Revenue Officer (VRO / VAO)",
-            officeType: "Grama Sachivalayam / Village Revenue Secretariat",
-            timeline: "Within 5–7 Days",
-            description: "Field officer conducts local inquiry, verifies native residence and community records.",
-            actionItem: "Be available during village spot verification or keep neighbor witnesses informed.",
-            commonPitfall: "Applicant not available at registered permanent residential address.",
+            check: "Does the claimant have evidence of forest land occupation prior to 13 December 2005?",
+            resolution: "Submit old forest encroachment challans, elder statements, or voter identity records showing residence prior to cut-off.",
+          },
+        ]
+      : [
+          {
+            check: "Are all required certificates issued in the current financial year?",
+            resolution: "Renew Income Certificate if issued before April 1, 2026.",
           },
           {
-            stageNumber: 3,
-            stageName: "Revenue Inspector Statutory Scrutiny",
-            actor: "Revenue Inspector (RI)",
-            officeType: "Mandal / Firka Revenue Office",
-            timeline: "Within 3 Days",
-            description: "Supervising officer reviews VRO field inquiry report and legal gazette records.",
-            actionItem: "Check online portal status for RI endorsement clearance.",
-            commonPitfall: "Land/Income discrepancies between revenue survey records and affidavit.",
+            check: "Is your bank account seeded on the NPCI mapper?",
+            resolution: "Submit JanSetu Annexure I mandate form to your bank branch.",
           },
-          {
-            stageNumber: 4,
-            stageName: "Digital Signing & Certificate Issuance",
-            actor: "Tahsildar / Mandal Revenue Officer (MRO)",
-            officeType: "Tahsil / Taluk Office",
-            timeline: "Within 15 Days (RTSA Guarantee)",
-            description: "Competent revenue authority digitally signs the barcoded, QR-coded statutory certificate.",
-            actionItem: "Download official digitally signed PDF from citizen portal or MeeSeva kiosk.",
-            commonPitfall: "Expired link or not downloading within the statutory validity window.",
-          },
-        ];
-      }
-
-      // 2. DIRECT STATE BENEFIT / CASH TRANSFERS (3 Stages: Enrollment -> Social Audit -> Treasury DBT)
-      const isDirectCash =
-        schemeId.includes("Pudhumai") ||
-        schemeId.includes("Tamil_Pudhalvan") ||
-        schemeId.includes("Amma_Vodi") ||
-        schemeId.includes("Pension") ||
-        schemeId.includes("Cheyutha") ||
-        schemeId.includes("Aasara") ||
-        schemeId.includes("KMUT") ||
-        schemeId.includes("Marriage") ||
-        schemeId.includes("Vahana");
-
-      if (isDirectCash) {
-        return [
-          {
-            stageNumber: 1,
-            stageName: "Aadhaar e-KYC & Beneficiary Enrollment",
-            actor: "Beneficiary / Village Volunteer",
-            officeType: "Grama / Ward Sachivalayam or School",
-            timeline: "Day 1",
-            description: `Online registration with biometric Aadhaar e-KYC and student/household verification on ${portalName}.`,
-            actionItem: "Ensure mobile number is linked to Aadhaar for OTP verification.",
-            commonPitfall: "Spelling variation between ration card and bank passbook.",
-          },
-          {
-            stageNumber: 2,
-            stageName: "Social Audit & Field Eligibility Scrutiny",
-            actor: "Ward Secretary / CDPO / Field Officer",
-            officeType: "Local Civic Directorate / Municipal Office",
-            timeline: "Within 10 Days",
-            description: "Field officer verifies government school attendance (6–12), land records, and electricity meter limits.",
-            actionItem: "Review draft beneficiary social audit list displayed at local secretariat.",
-            commonPitfall: "Failure to raise objection during social audit display window.",
-          },
-          {
-            stageNumber: 3,
-            stageName: "Direct Electronic Treasury Disbursal (e-Kuber DBT)",
-            actor: "State Treasury Directorate",
-            officeType: "State Electronic Treasury / RBI APBS",
-            timeline: "Direct Monthly / Scheduled Credit",
-            description: "Funds are released directly into the verified Aadhaar-seeded bank account.",
-            actionItem: "Check bank SMS confirmation or verify account credit on portal.",
-            commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
-          },
-        ];
-      }
-
-      // 3. HEALTHCARE & CASHLESS TREATMENT (4 Stages across Hospital & State Health Agency)
-      if (type === "healthcare") {
-        return [
-          {
-            stageNumber: 1,
-            stageName: "Ayushman Kiosk e-KYC & Verification",
-            actor: "Ayushman Mitra / Arogya Mithra",
-            officeType: "Empaneled Hospital Helpdesk",
-            timeline: "Instant (15 mins)",
-            description: "Verify beneficiary entitlement on SECC / NFSA database using Aadhaar or Ration Card.",
-            actionItem: "Generate Golden Health PVC Card on spot at zero charge.",
-            commonPitfall: "Going to an un-empaneled private nursing home.",
-          },
-          {
-            stageNumber: 2,
-            stageName: "Clinical Diagnosis & Specialist Prescription",
-            actor: "Empaneled Specialist Doctor",
-            officeType: "Hospital Inpatient Department",
-            timeline: "Day 1 of Admission",
-            description: "Doctor diagnoses medical condition and prescribes an empaneled surgical or medical package.",
-            actionItem: "Collect clinical diagnostic scans and specialist admission requisition.",
-            commonPitfall: "Paying cash for diagnostic scans at empaneled hospital.",
-          },
-          {
-            stageNumber: 3,
-            stageName: "State Health Agency (SHA) Pre-Authorization",
-            actor: "State Health Agency / TPA Medical Auditor",
-            officeType: "Online National Health Authority TMS Portal",
-            timeline: "Within 2 to 4 Hours",
-            description: "Hospital uploads clinical reports to NHA portal for government treatment sanction.",
-            actionItem: "Ensure hospital initiates TMS claim before ICU admission or surgery.",
-            commonPitfall: "Hospital asking for cash deposit as security deposit (strictly illegal).",
-          },
-          {
-            stageNumber: 4,
-            stageName: "100% Cashless Medical Care & Biometric Discharge",
-            actor: "Hospital Medical Team & Pharmacy",
-            officeType: "Empaneled Hospital Discharge Desk",
-            timeline: "Duration of Treatment + 15 Days Meds",
-            description: "Patient receives complete cashless surgery, medications, implants, and 15 days of take-home medicine.",
-            actionItem: "Sign biometric discharge voucher only after full treatment completion.",
-            commonPitfall: "Leaving without collecting mandatory 15-day post-care medication pack.",
-          },
-        ];
-      }
-
-      // 4. CENTRAL / MERIT SCHOLARSHIPS (5 Stages across Academic & Welfare Wings)
-      return [
-        {
-          stageNumber: 1,
-          stageName: "Pre-Flight Document Gathering & Online Submission",
-          actor: "Applicant (Student)",
-          officeType: "Online National Scholarship Portal (NSP)",
-          timeline: "Before Portal Deadline",
-          description: `Submit online application on ${portalName} with Aadhaar OTP authentication.`,
-          actionItem: "Download and print application submission acknowledgment.",
-          commonPitfall: "Uploading blurry or unreadable scanned copies.",
-        },
-        {
-          stageNumber: 2,
-          stageName: "First-Tier Institutional Bonafide Verification",
-          actor: "Institute Nodal Officer (INO) / College Principal",
-          officeType: "College / University Academic Office",
-          timeline: "Within 10 Days of Submission",
-          description: "College verification officer cross-verifies student admission, attendance, and fee structure.",
-          actionItem: "Submit physical copies to verification clerk immediately after online entry.",
-          commonPitfall: "Delaying physical document submission past the institute closing date.",
-        },
-        {
-          stageNumber: 3,
-          stageName: "District Welfare Officer (DNO) Scrutiny",
-          actor: "District Welfare / Social Justice Officer",
-          officeType: "District Collectorate Welfare Wing",
-          timeline: "15 Days",
-          description: "Competent district authority verifies caste, income authenticity, and student quota.",
-          actionItem: "Monitor online status weekly; address any defective notice promptly.",
-          commonPitfall: "Failing to rectify defective notices within the 72-hour window.",
-        },
-        {
-          stageNumber: 4,
-          stageName: "State Directorate (SNO) Merit Sanction",
-          actor: "State Nodal Officer (SNO)",
-          officeType: "State Higher Education / Tribal Directorate",
-          timeline: "Within 20 Days",
-          description: "State directorate creates verified merit list and generates financial sanction orders.",
-          actionItem: "Track application status on portal for SNO sanction order number.",
-          commonPitfall: "Institute not recognized under AISHE code.",
-        },
-        {
-          stageNumber: 5,
-          stageName: "Direct Disbursal via PFMS / APBS",
-          actor: "Public Financial Management System (PFMS)",
-          officeType: "Central Treasury / National Payments Gateway",
-          timeline: "Direct Disbursal",
-          description: "Scholarship grant is credited directly into the verified Aadhaar-seeded bank account.",
-          actionItem: "Verify credit via bank SMS or download official payment voucher.",
-          commonPitfall: "Dormant bank account or unseeded NPCI mapper preventing credit.",
-        },
-      ];
-    })(),
-    rejectionChecklist: [
-      {
-        check: "Are all required certificates issued in the current financial year?",
-        resolution: "Renew Income Certificate if issued before April 1, 2026.",
-      },
-      {
-        check: "Is your bank account seeded on the NPCI mapper?",
-        resolution: "Submit JanSetu Annexure I mandate form to your bank branch.",
-      },
-    ],
+        ],
   };
 }
 

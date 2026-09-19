@@ -25,7 +25,9 @@ import {
   Check,
   HelpCircle,
   Activity,
-  Printer
+  Printer,
+  Globe,
+  ShieldAlert
 } from "lucide-react";
 import { SCHEMES_DATABASE, SchemeOrService } from "@/data/schemes";
 import {
@@ -66,7 +68,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
 
   // Single Scheme State
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(defaultScheme);
-  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "MY_STATE" | "CENTRAL" | "SCHOLARSHIP" | "HEALTHCARE" | "CERTIFICATE">("ALL");
+  const [categoryFilter, setCategoryFilter] = useState<"ALL" | "MY_STATE" | "CENTRAL" | "SCHOLARSHIP" | "HEALTHCARE" | "CERTIFICATE" | "OFFLINE">("ALL");
 
   React.useEffect(() => {
     if (userState === "Andhra Pradesh" && initialSchemeId.startsWith("TN_")) {
@@ -120,6 +122,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
       if (categoryFilter === "SCHOLARSHIP") return s.type === "scholarship";
       if (categoryFilter === "HEALTHCARE") return s.type === "healthcare";
       if (categoryFilter === "CERTIFICATE") return s.type === "certificate";
+      if (categoryFilter === "OFFLINE") return s.id.includes("FRA") || s.id.includes("Jungle") || s.id.includes("RoFR") || !s.officialPortalUrl;
       return true;
     }).sort((a, b) => {
       // Prioritize user's home state schemes to prevent cross-state confusion
@@ -310,6 +313,17 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                     <ShieldCheck className="size-3" />
                     Certificates
                   </button>
+                  <button
+                    onClick={() => setCategoryFilter("OFFLINE")}
+                    className={`flex items-center gap-1 rounded-lg px-3 py-1 text-xs font-semibold cursor-pointer transition-colors ${
+                      categoryFilter === "OFFLINE"
+                        ? "bg-purple-900 text-purple-100 font-bold border border-purple-400/50 shadow-xs"
+                        : "bg-purple-50 text-purple-900 hover:bg-purple-100 border border-purple-200"
+                    }`}
+                  >
+                    <Building2 className="size-3 text-purple-700" />
+                    🏛️ 100% Offline (FRA / Patta)
+                  </button>
                 </div>
               </div>
 
@@ -319,6 +333,8 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                   const isSelected = s.id === selectedSchemeId;
                   const isMedical = s.type === "healthcare";
                   const isCert = s.type === "certificate";
+                  const isTotallyOffline = s.id.includes("FRA") || s.id.includes("Jungle") || s.id.includes("RoFR") || !s.officialPortalUrl;
+                  const isTotallyOnline = s.id.includes("Vidyalaxmi") || s.id.includes("Pragati") || s.id.includes("Ishaan");
 
                   return (
                     <button
@@ -346,11 +362,26 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                           >
                             {s.shortCode}
                           </span>
-                          {isSelected && (
-                            <span className="flex items-center gap-1 text-[11px] font-bold text-[#0B1B4F]">
-                              <Check className="size-3 text-[#DFB738]" /> Active
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {isTotallyOffline ? (
+                              <span className="rounded bg-purple-100 border border-purple-300 px-1.5 py-0.2 text-[9px] font-bold text-purple-900">
+                                🏛️ Offline Desk
+                              </span>
+                            ) : isTotallyOnline ? (
+                              <span className="rounded bg-sky-100 border border-sky-300 px-1.5 py-0.2 text-[9px] font-bold text-sky-900">
+                                🌐 100% Online
+                              </span>
+                            ) : (
+                              <span className="rounded bg-amber-100 border border-amber-300 px-1.5 py-0.2 text-[9px] font-bold text-amber-900">
+                                ⚡ Hybrid
+                              </span>
+                            )}
+                            {isSelected && (
+                              <span className="flex items-center gap-1 text-[11px] font-bold text-[#0B1B4F]">
+                                <Check className="size-3 text-[#DFB738]" /> Active
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <h4 className="text-xs font-bold text-[#0B1B4F] line-clamp-2 leading-snug font-serif">
                           {s.title}
@@ -407,6 +438,103 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                 </div>
               </div>
             </div>
+
+            {/* Application Modality Banner: 100% Online vs Hybrid vs 100% Offline */}
+            {currentRoadmap.processMode === "TOTALLY_ONLINE" && (
+              <div className="rounded-xl border border-sky-300 bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 p-4 text-sky-950 shadow-xs space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 rounded-md bg-blue-700 text-white px-2.5 py-1 text-[11px] font-black tracking-wide shadow-xs">
+                      <Globe className="size-3.5" />
+                      100% ONLINE DIGITAL PORTAL
+                    </span>
+                    <span className="text-xs font-bold text-blue-900">Zero Physical Office Visits Required</span>
+                  </div>
+                  {currentRoadmap.portalUrl && (
+                    <a
+                      href={currentRoadmap.portalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs shrink-0"
+                    >
+                      <span>Open {currentRoadmap.portalName}</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-sky-900 leading-relaxed font-medium">
+                  {currentRoadmap.processModeDescription}
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-blue-800 font-semibold bg-white/70 rounded-lg p-2 border border-blue-200/60">
+                  <span>💡 Statutory Digital SLA: Direct electronic processing via DigiLocker and automated loan/grant approval. All procedures execute on {currentRoadmap.portalName}.</span>
+                </div>
+              </div>
+            )}
+
+            {currentRoadmap.processMode === "HYBRID" && (
+              <div className="rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 via-orange-50 to-yellow-50 p-4 text-amber-950 shadow-xs space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 rounded-md bg-amber-700 text-white px-2.5 py-1 text-[11px] font-black tracking-wide shadow-xs">
+                      <Layers className="size-3.5" />
+                      HYBRID APPLICATION WORKFLOW
+                    </span>
+                    <span className="text-xs font-bold text-amber-900">Online Submission + Designated Local Field Desks</span>
+                  </div>
+                  {currentRoadmap.portalUrl && (
+                    <a
+                      href={currentRoadmap.portalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0B1B4F] hover:bg-[#152864] text-[#F5E29F] px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs border border-[#DFB738]/40 shrink-0"
+                    >
+                      <span>Open Official Portal</span>
+                      <ExternalLink className="size-3" />
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                  {currentRoadmap.processModeDescription}
+                </p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-amber-950 bg-white/70 rounded-lg p-2 border border-amber-200/60">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="size-3.5 text-amber-700 shrink-0" />
+                    <span><strong>Designated Physical Desk:</strong> {currentRoadmap.offlineCounter}</span>
+                  </div>
+                  <span className="font-semibold text-amber-800">Field inquiry / Biometric authentication required</span>
+                </div>
+              </div>
+            )}
+
+            {currentRoadmap.processMode === "TOTALLY_OFFLINE" && (
+              <div className="rounded-xl border border-purple-300 bg-gradient-to-r from-purple-50 via-slate-50 to-rose-50 p-4 text-purple-950 shadow-xs space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex items-center gap-1 rounded-md bg-purple-900 text-purple-100 px-2.5 py-1 text-[11px] font-black tracking-wide shadow-xs">
+                      <Building2 className="size-3.5" />
+                      100% IN-PERSON PHYSICAL PROCESS ONLY
+                    </span>
+                    <span className="text-xs font-bold text-purple-950">Statutory Gram Sabha & Revenue Court Verification</span>
+                  </div>
+                  <span className="rounded-lg bg-purple-200/70 border border-purple-300 px-2.5 py-1 text-[11px] font-black text-purple-950">
+                    Zero Authorized Online Portals
+                  </span>
+                </div>
+                <p className="text-xs text-purple-900 leading-relaxed font-medium">
+                  {currentRoadmap.processModeDescription}
+                </p>
+                <div className="flex items-center gap-2 text-[11px] text-purple-950 font-bold bg-white/80 rounded-lg p-2.5 border border-purple-200">
+                  <MapPin className="size-4 text-purple-700 shrink-0" />
+                  <span>Mandatory Physical Counter: <span className="underline decoration-purple-400 font-black">{currentRoadmap.offlineCounter}</span></span>
+                </div>
+                <div className="flex items-start gap-2 rounded-lg bg-rose-50 border border-rose-200 p-2.5 text-rose-950 text-[11px]">
+                  <ShieldAlert className="size-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="leading-snug">
+                    <strong>Statutory Anti-Fraud Warning:</strong> Under Section 6 of the Forest Rights Act 2006, claims for forest land title deeds (Jungle Bhoomi Land Patta) can <em>strictly</em> be sanctioned only through physical quorum resolutions of the village Gram Sabha and joint ground surveys. Never pay fees or trust unverified third-party websites offering online pattas.
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Live Document Readiness Meter */}
             <div className="rounded-xl border border-[#EDE6DD] bg-[#FAF7F2] p-4.5">
@@ -672,9 +800,26 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                         <span className="flex size-6 items-center justify-center rounded-full bg-[#0B1B4F] text-xs font-bold text-[#F5E29F] font-serif shadow-xs">
                           {stage.stageNumber}
                         </span>
-                        <span className="font-mono text-[10px] font-bold text-slate-500">
-                          {stage.timeline}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {stage.stageMode === "ONLINE" && (
+                            <span className="inline-block rounded bg-blue-50 border border-blue-200 px-1.5 py-0.5 text-[9px] font-bold text-blue-900 tracking-wide">
+                              🌐 Online
+                            </span>
+                          )}
+                          {stage.stageMode === "OFFLINE" && (
+                            <span className="inline-block rounded bg-purple-50 border border-purple-200 px-1.5 py-0.5 text-[9px] font-bold text-purple-900 tracking-wide">
+                              🏛️ Physical Desk
+                            </span>
+                          )}
+                          {stage.stageMode === "HYBRID" && (
+                            <span className="inline-block rounded bg-amber-50 border border-amber-200 px-1.5 py-0.5 text-[9px] font-bold text-amber-900 tracking-wide">
+                              ⚡ Hybrid
+                            </span>
+                          )}
+                          <span className="font-mono text-[10px] font-bold text-slate-500">
+                            {stage.timeline}
+                          </span>
+                        </div>
                       </div>
 
                       {stage.officeType && (
@@ -697,12 +842,29 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                     </div>
 
                     <div className="mt-3 pt-2.5 border-t border-[#EDE6DD] space-y-1.5">
+                      {stage.physicalDeskLocation && (
+                        <div className="rounded bg-purple-50/80 border border-purple-200 p-1.5 text-[10px] text-purple-950 font-medium flex items-start gap-1.5">
+                          <MapPin className="size-3 text-purple-700 shrink-0 mt-0.5" />
+                          <span><strong>Location:</strong> {stage.physicalDeskLocation}</span>
+                        </div>
+                      )}
                       <div className="rounded bg-emerald-50 border border-emerald-100 p-1.5 text-[10px] text-emerald-950 font-medium">
                         <strong>Action:</strong> {stage.actionItem}
                       </div>
                       <div className="rounded bg-rose-50 border border-rose-100 p-1.5 text-[10px] text-rose-950 font-medium">
                         <strong>Rejection Risk:</strong> {stage.commonPitfall}
                       </div>
+                      {stage.portalLink && (
+                        <a
+                          href={stage.portalLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-1.5 w-full rounded-md bg-blue-700 hover:bg-blue-800 text-white p-1.5 text-[10px] font-bold transition-colors shadow-2xs mt-1"
+                        >
+                          <span>{stage.portalActionText || "Open Stage Portal"}</span>
+                          <ExternalLink className="size-2.5" />
+                        </a>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -722,15 +884,28 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
               </div>
 
               <div className="flex flex-wrap items-center gap-2.5">
-                <a
-                  href={currentRoadmap.portalUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-lg bg-[#0B1B4F] px-4.5 py-2 text-xs font-bold text-[#F5E29F] hover:bg-[#152864] transition-all shadow-md border border-[#DFB738]/40"
-                >
-                  <span>Open Official Portal</span>
-                  <ExternalLink className="size-3.5" />
-                </a>
+                {currentRoadmap.processMode === "TOTALLY_OFFLINE" ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-purple-900 px-4 py-2 text-xs font-bold text-purple-100 shadow-md">
+                    <MapPin className="size-4 text-purple-300 shrink-0" />
+                    <span>In-Person Physical Submission: Proceed to {currentRoadmap.offlineCounter}</span>
+                  </div>
+                ) : (
+                  currentRoadmap.portalUrl && (
+                    <a
+                      href={currentRoadmap.portalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center gap-2 rounded-lg px-4.5 py-2 text-xs font-bold transition-all shadow-md ${
+                        currentRoadmap.processMode === "TOTALLY_ONLINE"
+                          ? "bg-blue-700 hover:bg-blue-800 text-white"
+                          : "bg-[#0B1B4F] text-[#F5E29F] hover:bg-[#152864] border border-[#DFB738]/40"
+                      }`}
+                    >
+                      <span>Open Official Portal</span>
+                      <ExternalLink className="size-3.5" />
+                    </a>
+                  )
+                )}
               </div>
             </div>
 
