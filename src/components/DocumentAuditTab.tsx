@@ -144,7 +144,8 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
       {
         fileName: string;
         size: string;
-        status: "VERIFIED" | "PENDING";
+        status: "VERIFIED" | "PENDING" | "REJECTED";
+        isValidDocument?: boolean;
         extractedName?: string;
         extractedId?: string;
         confidenceScore?: number;
@@ -180,15 +181,18 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
-        const expected = docName.toLowerCase().includes("caste")
-          ? "caste"
-          : docName.toLowerCase().includes("income")
-          ? "income"
-          : docName.toLowerCase().includes("memo") || docName.toLowerCase().includes("marksheet")
-          ? "marksheet"
-          : docName.toLowerCase().includes("bank") || docName.toLowerCase().includes("passbook")
-          ? "bank"
-          : "aadhaar";
+        const docLower = docName.toLowerCase();
+        let expected = "statutory_cert";
+        if (docLower.includes("aadhaar") || docLower.includes("aadhar")) expected = "aadhaar";
+        else if (docLower.includes("caste") || docLower.includes("community")) expected = "caste";
+        else if (docLower.includes("income")) expected = "income";
+        else if (docLower.includes("memo") || docLower.includes("marksheet") || docLower.includes("ssc") || docLower.includes("inter")) expected = "marksheet";
+        else if (docLower.includes("bank") || docLower.includes("passbook") || docLower.includes("statement")) expected = "bank";
+        else if (docLower.includes("ration")) expected = "ration_card";
+        else if (docLower.includes("bonafide") || docLower.includes("study") || docLower.includes("institutional")) expected = "bonafide";
+        else if (docLower.includes("disability") || docLower.includes("sadarem") || docLower.includes("udid")) expected = "disability";
+        else if (docLower.includes("land") || docLower.includes("patta") || docLower.includes("rofr")) expected = "land_record";
+        else expected = docName;
 
         const response = await fetch("/api/audit/extract-document", {
           method: "POST",
@@ -209,7 +213,8 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             [docName]: {
               fileName: file.name,
               size: sizeStr,
-              status: res.isValidDocument ? "VERIFIED" : "PENDING",
+              status: res.isValidDocument ? "VERIFIED" : "REJECTED",
+              isValidDocument: res.isValidDocument,
               extractedName: res.extractedName,
               extractedId: res.extractedIdNumber,
               confidenceScore: res.confidenceScore,
@@ -224,7 +229,9 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             [docName]: {
               fileName: file.name,
               size: sizeStr,
-              status: "VERIFIED",
+              status: "REJECTED",
+              isValidDocument: false,
+              validationWarnings: [data.error || "Document validation failed. Statutory markers not recognized."],
               isExtracting: false,
             },
           }));
@@ -236,7 +243,9 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
           [docName]: {
             fileName: file.name,
             size: sizeStr,
-            status: "VERIFIED",
+            status: "REJECTED",
+            isValidDocument: false,
+            validationWarnings: ["Extraction error: Unable to process document file."],
             isExtracting: false,
           },
         }));
@@ -356,7 +365,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             name: file.name,
             size: sizeStr,
             type: file.type,
-            extractedName: res.extractedName || "Unknown",
+            extractedName: res.extractedName || (res.isValidDocument ? "Verified Citizen" : "Verification Rejected"),
             extractedDob: res.extractedDob,
             extractedId: res.extractedIdNumber,
             confidenceScore: res.confidenceScore,
@@ -403,9 +412,19 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         }
       } catch (err) {
         console.error("Document extraction error:", err);
-        if (type === "aadhaar") setAadhaarFile((prev) => prev ? { ...prev, isExtracting: false } : null);
-        else if (type === "marksheet") setMarksheetFile((prev) => prev ? { ...prev, isExtracting: false } : null);
-        else setBankFile((prev) => prev ? { ...prev, isExtracting: false } : null);
+        const errorState: UploadedFileInfo = {
+          name: file.name,
+          size: sizeStr,
+          type: file.type,
+          extractedName: "Verification Failed",
+          isValidDocument: false,
+          confidenceScore: 0,
+          validationWarnings: ["Failed to connect to document validation service."],
+          isExtracting: false,
+        };
+        if (type === "aadhaar") setAadhaarFile(errorState);
+        else if (type === "marksheet") setMarksheetFile(errorState);
+        else setBankFile(errorState);
       }
     };
     reader.readAsDataURL(file);
@@ -1001,9 +1020,23 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-[10px] text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+            <div className={`mt-3 flex items-center justify-between text-[10px] px-2.5 py-1 rounded-lg border ${
+              aadhaarFile?.isValidDocument === false
+                ? "text-rose-800 bg-rose-50 border-rose-200 font-bold"
+                : "text-emerald-800 bg-emerald-50 border-emerald-200"
+            }`}>
               <span className="flex items-center gap-1 font-semibold">
-                <CheckCircle className="size-3" /> UIDAI Biometric Verified
+                {aadhaarFile?.isValidDocument === false ? (
+                  <>
+                    <AlertTriangle className="size-3 text-rose-600" />
+                    <span>UIDAI Verification Rejected (Invalid / Non-Statutory)</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="size-3 text-emerald-600" />
+                    <span>UIDAI Biometric Verified</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -1099,9 +1132,23 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-[10px] text-sky-800 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200">
+            <div className={`mt-3 flex items-center justify-between text-[10px] px-2.5 py-1 rounded-lg border ${
+              marksheetFile?.isValidDocument === false
+                ? "text-rose-800 bg-rose-50 border-rose-200 font-bold"
+                : "text-sky-800 bg-sky-50 border-sky-200"
+            }`}>
               <span className="flex items-center gap-1 font-semibold">
-                <CheckCircle className="size-3" /> State Board Authenticated
+                {marksheetFile?.isValidDocument === false ? (
+                  <>
+                    <AlertTriangle className="size-3 text-rose-600" />
+                    <span>Board Verification Rejected (Invalid / Non-Statutory)</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="size-3 text-sky-600" />
+                    <span>State Board Authenticated</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -1221,9 +1268,23 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               )}
             </div>
 
-            <div className="mt-3 flex items-center justify-between text-[10px] text-amber-900 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+            <div className={`mt-3 flex items-center justify-between text-[10px] px-2.5 py-1 rounded-lg border ${
+              bankFile?.isValidDocument === false
+                ? "text-rose-800 bg-rose-50 border-rose-200 font-bold"
+                : "text-amber-900 bg-amber-50 border-amber-200"
+            }`}>
               <span className="flex items-center gap-1 font-semibold">
-                <CheckCircle className="size-3" /> Core Banking Validated
+                {bankFile?.isValidDocument === false ? (
+                  <>
+                    <AlertTriangle className="size-3 text-rose-600" />
+                    <span>Bank KYC Verification Rejected (Invalid / Non-Statutory)</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="size-3 text-amber-600" />
+                    <span>Core Banking Validated</span>
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -1256,8 +1317,12 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">
-            <span className="rounded-full bg-white border border-[#DFC8A5] px-3.5 py-1 text-xs font-mono font-bold text-[#0B1B4F]">
-              {Object.keys(schemeUploadedDocs).length} / {currentScheme.mandatoryDocuments.length} Uploaded
+            <span className={`rounded-full px-3.5 py-1 text-xs font-mono font-bold border ${
+              Object.values(schemeUploadedDocs).some((d) => d.status === "REJECTED" || d.isValidDocument === false)
+                ? "bg-rose-50 text-rose-800 border-rose-300"
+                : "bg-white text-[#0B1B4F] border-[#DFC8A5]"
+            }`}>
+              {Object.values(schemeUploadedDocs).filter((d) => d.status === "VERIFIED" && d.isValidDocument !== false).length} / {currentScheme.mandatoryDocuments.length} Verified
             </span>
           </div>
         </div>
@@ -1265,14 +1330,18 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         {/* Dynamic Mandatory Documents Grid */}
         <div className="grid gap-3 sm:grid-cols-2">
           {currentScheme.mandatoryDocuments.map((docName, idx) => {
-            const isUploaded = Boolean(schemeUploadedDocs[docName]);
             const uploadedInfo = schemeUploadedDocs[docName];
+            const isUploaded = Boolean(uploadedInfo);
+            const isRejected = uploadedInfo?.status === "REJECTED" || uploadedInfo?.isValidDocument === false;
+            const isVerified = uploadedInfo?.status === "VERIFIED" && uploadedInfo?.isValidDocument !== false;
 
             return (
               <div
                 key={idx}
                 className={`rounded-xl border p-4 transition-all flex flex-col justify-between ${
-                  isUploaded
+                  isRejected
+                    ? "border-rose-300 bg-rose-50/40 shadow-xs"
+                    : isVerified
                     ? "border-emerald-300 bg-emerald-50/40 shadow-xs"
                     : "border-dashed border-[#DFC8A5] bg-white hover:bg-[#FAF7F2]/60"
                 }`}
@@ -1284,13 +1353,26 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                     </span>
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
-                        isUploaded
+                        isRejected
+                          ? "bg-rose-100 text-rose-900 border border-rose-300"
+                          : isVerified
                           ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
                           : "bg-amber-100 text-amber-900 border border-amber-200"
                       }`}
                     >
-                      {isUploaded ? <CheckCircle className="size-2.5" /> : null}
-                      {isUploaded ? "Uploaded" : "Pending"}
+                      {isRejected ? (
+                        <>
+                          <AlertTriangle className="size-2.5 text-rose-700" />
+                          <span>Rejected</span>
+                        </>
+                      ) : isVerified ? (
+                        <>
+                          <CheckCircle className="size-2.5 text-emerald-700" />
+                          <span>Verified</span>
+                        </>
+                      ) : (
+                        <span>Pending</span>
+                      )}
                     </span>
                   </div>
 
@@ -1300,7 +1382,11 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
                   {isUploaded && uploadedInfo && (
                     <div className="mt-2 space-y-1.5">
-                      <div className="text-[11px] text-emerald-900 bg-white/80 p-2 rounded-lg border border-emerald-200 font-mono flex items-center justify-between">
+                      <div className={`text-[11px] p-2 rounded-lg border font-mono flex items-center justify-between ${
+                        isRejected
+                          ? "text-rose-900 bg-white/90 border-rose-200"
+                          : "text-emerald-900 bg-white/80 border-emerald-200"
+                      }`}>
                         <span className="truncate max-w-[180px]">📄 {uploadedInfo.fileName}</span>
                         <span>{uploadedInfo.size}</span>
                       </div>
@@ -1309,6 +1395,16 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                         <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg text-amber-900 text-xs">
                           <RefreshCw className="size-3.5 animate-spin text-amber-700" />
                           <span>Scanning document with OCR...</span>
+                        </div>
+                      ) : isRejected ? (
+                        <div className="p-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs space-y-1">
+                          <div className="flex items-center gap-1 font-bold text-rose-800">
+                            <AlertTriangle className="size-3.5 text-rose-600 shrink-0" />
+                            <span>Statutory Verification Rejected</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-rose-700 font-medium">
+                            {uploadedInfo.validationWarnings?.[0] || "File does not match required statutory certificate standards."}
+                          </p>
                         </div>
                       ) : uploadedInfo.extractedName ? (
                         <div className="p-2 rounded-lg bg-emerald-50/80 border border-emerald-200 text-xs space-y-1">
@@ -1322,6 +1418,11 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                               {uploadedInfo.confidenceScore && (
                                 <span className="text-emerald-700 font-bold">{uploadedInfo.confidenceScore}% OCR Match</span>
                               )}
+                            </div>
+                          )}
+                          {uploadedInfo.issuingAuthority && (
+                            <div className="text-[9px] text-slate-500 font-mono pt-0.5 border-t border-emerald-100">
+                              Auth: {uploadedInfo.issuingAuthority}
                             </div>
                           )}
                         </div>
