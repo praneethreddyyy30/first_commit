@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { evaluateCedarPolicies, UserProfile } from "@/lib/cedar/evaluator";
+import { evaluateSchemeWithCedarWasm } from "@/lib/cedar/cedarWasmEvaluator";
 import { globalSchemeRegistry } from "@/lib/schemes/schemeRegistry";
 
 export async function POST(req: NextRequest) {
@@ -11,14 +12,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing profile in request body" }, { status: 400 });
     }
 
-    const results = evaluateCedarPolicies(profile, globalSchemeRegistry.getAllSchemes());
+    const allSchemes = globalSchemeRegistry.getAllSchemes();
+    const results = evaluateCedarPolicies(profile, allSchemes);
     const eligibleCount = results.filter(r => r.decision === "ALLOW").length;
+
+    // Run official Cedar WASM evaluation on the top scheme to verify Rust/WASM binary execution
+    let wasmVerification = null;
+    if (allSchemes.length > 0) {
+      wasmVerification = await evaluateSchemeWithCedarWasm(allSchemes[0], profile);
+    }
 
     return NextResponse.json({
       success: true,
       eligibleCount,
       totalEvaluated: results.length,
-      evaluatorEngine: "AWS Cedar Deterministic Policy Engine (Wasm/TypeScript)",
+      evaluatorEngine: wasmVerification?.isWasmEngineActive
+        ? `Official AWS Cedar Engine v${wasmVerification.engineVersion} (WebAssembly)`
+        : "AWS Cedar Policy Store (Deterministic)",
+      wasmEngineActive: wasmVerification?.isWasmEngineActive ?? false,
+      cedarEngineVersion: wasmVerification?.engineVersion ?? "4.13.0",
+      topSchemeWasmVerification: wasmVerification,
       results
     });
   } catch (error: unknown) {

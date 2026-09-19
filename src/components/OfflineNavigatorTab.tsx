@@ -44,6 +44,49 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
+  // Live Postal API Resolution State
+  const [pincodeInput, setPincodeInput] = useState<string>("");
+  const [isLookingUpPin, setIsLookingUpPin] = useState<boolean>(false);
+  const [livePostalCenters, setLivePostalCenters] = useState<{
+    name: string;
+    type: "CSC" | "SUB_OFFICE" | "HEAD_OFFICE" | "GRAMA_WARD_SACHIVALAYAM";
+    address: string;
+    distanceEstimate: string;
+  }[] | null>(null);
+  const [postalDistrictResolved, setPostalDistrictResolved] = useState<string | null>(null);
+  const [postalError, setPostalError] = useState<string | null>(null);
+
+  const handleLivePincodeLookup = async (pin: string) => {
+    const cleanPin = pin.trim().replace(/\D/g, "");
+    if (cleanPin.length !== 6) {
+      setPostalError("Please enter a valid 6-digit PIN code.");
+      return;
+    }
+
+    setIsLookingUpPin(true);
+    setPostalError(null);
+
+    try {
+      const res = await fetch(`/api/geo/pincode?pincode=${cleanPin}`);
+      const json = await res.json();
+      if (json.success && json.data?.suggestedSevaCenters?.length > 0) {
+        setLivePostalCenters(json.data.suggestedSevaCenters);
+        setPostalDistrictResolved(json.data.district || null);
+        if (json.data.state) {
+          setSelectedState(json.data.state);
+        }
+      } else {
+        setPostalError("No postal branches found for this PIN code.");
+        setLivePostalCenters(null);
+      }
+    } catch {
+      setPostalError("Failed to query Indian Postal directory. Check network.");
+      setLivePostalCenters(null);
+    } finally {
+      setIsLookingUpPin(false);
+    }
+  };
+
   // Fee Calculator selected service
   const initialService = useMemo(() => {
     if (userState === "Andhra Pradesh") return "AP_MeeSeva_REV01";
@@ -385,6 +428,70 @@ export const OfflineNavigatorTab: React.FC<OfflineNavigatorTabProps> = ({
               <span className="text-[11px] font-bold text-emerald-800 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-300">
                 0.3 km – 18.5 km Range
               </span>
+            </div>
+          )}
+        </div>
+
+        {/* Live Postal PIN Code Geo-Resolver Bar */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-emerald-600 animate-pulse" />
+              <h5 className="text-xs font-bold text-emerald-950 font-serif uppercase tracking-wider">
+                🇮🇳 Live Postal & CSC Geo-Resolver (India Post Gateway)
+              </h5>
+            </div>
+            <span className="text-[10px] text-emerald-800 font-mono">
+              Direct api.postalpincode.in integration • Real Taluk & Sub-Offices
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="text"
+              value={pincodeInput}
+              onChange={(e) => setPincodeInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLivePincodeLookup(pincodeInput)}
+              placeholder="Enter your 6-digit Pincode (e.g. 500001, 600001, 520001)..."
+              maxLength={6}
+              className="flex-1 min-w-[220px] rounded-lg border border-emerald-300 bg-white px-3 py-2 text-xs text-slate-900 font-mono font-bold focus:border-emerald-600 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => handleLivePincodeLookup(pincodeInput)}
+              disabled={isLookingUpPin}
+              className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition-colors disabled:opacity-60 cursor-pointer shadow-xs"
+            >
+              {isLookingUpPin ? "Resolving Postal Registry..." : "Find Nearest Centers"}
+            </button>
+          </div>
+
+          {postalError && (
+            <p className="text-[11px] font-medium text-rose-700">{postalError}</p>
+          )}
+
+          {/* Live Resolved Postal Centers Banner */}
+          {livePostalCenters && livePostalCenters.length > 0 && (
+            <div className="rounded-lg border border-emerald-300 bg-white p-3.5 space-y-2 mt-2">
+              <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                <span className="text-xs font-bold text-emerald-900">
+                  📍 Verified Postal Hubs & Centers in {postalDistrictResolved || "Your Area"}:
+                </span>
+                <span className="text-[10px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">
+                  {livePostalCenters.length} Verified Outlets
+                </span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {livePostalCenters.map((pc, idx) => (
+                  <div key={idx} className="rounded-md border border-slate-200 bg-slate-50/50 p-2 text-xs space-y-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="font-bold text-[#0B1B4F]">{pc.name}</span>
+                      <span className="text-[10px] text-emerald-700 font-mono font-bold">{pc.distanceEstimate}</span>
+                    </div>
+                    <p className="text-[11px] text-slate-600">{pc.address}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
