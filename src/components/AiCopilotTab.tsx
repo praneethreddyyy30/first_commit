@@ -249,6 +249,7 @@ Ask me anything! Here are popular queries:
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef<boolean>(false);
 
   // Restore saved AWS credentials if previously entered
   useEffect(() => {
@@ -290,29 +291,47 @@ Ask me anything! Here are popular queries:
     setModelSource("JanSetu-Civic-RAG (Zero-Fail / No Key Needed)");
   };
 
-  // Initialize Speech Recognition if supported
+  // Initialize Robust Continuous Speech Recognition
   useEffect(() => {
     if (typeof window !== "undefined") {
       const SpeechRecognition =
         (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition) {
         const recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = false;
+        recognition.continuous = true;
+        recognition.interimResults = true;
         recognition.lang = language === "hi" ? "hi-IN" : "en-IN";
 
         recognition.onresult = (event: any) => {
-          const transcript = event.results[0][0].transcript;
-          setInputQuery(transcript);
-          setIsListening(false);
+          let accumulated = "";
+          for (let i = 0; i < event.results.length; i++) {
+            accumulated += event.results[i][0].transcript + " ";
+          }
+          if (accumulated.trim()) {
+            setInputQuery(accumulated.trim());
+          }
         };
 
-        recognition.onerror = () => {
-          setIsListening(false);
+        recognition.onerror = (err: any) => {
+          console.warn("Speech recognition warning:", err?.error);
+          if (err?.error !== "no-speech") {
+            setIsListening(false);
+            isListeningRef.current = false;
+          }
         };
 
         recognition.onend = () => {
-          setIsListening(false);
+          // If user still has recording turned ON, keep listening across natural pauses
+          if (isListeningRef.current) {
+            try {
+              recognition.start();
+            } catch (e) {
+              setIsListening(false);
+              isListeningRef.current = false;
+            }
+          } else {
+            setIsListening(false);
+          }
         };
 
         recognitionRef.current = recognition;
@@ -331,15 +350,21 @@ Ask me anything! Here are popular queries:
     }
 
     if (isListening) {
-      recognitionRef.current.stop();
+      isListeningRef.current = false;
+      try {
+        recognitionRef.current.stop();
+      } catch (e) {}
       setIsListening(false);
     } else {
       try {
+        isListeningRef.current = true;
         recognitionRef.current.lang = language === "hi" ? "hi-IN" : "en-IN";
         recognitionRef.current.start();
         setIsListening(true);
       } catch (err) {
-        console.error("Speech recognition error:", err);
+        console.error("Speech recognition start error:", err);
+        isListeningRef.current = false;
+        setIsListening(false);
       }
     }
   };
@@ -356,22 +381,37 @@ Ask me anything! Here are popular queries:
       return;
     }
 
-    // Clean markdown stars from speech text
-    const cleanText = text.replace(/[*#_`]/g, "");
+    // Clean markdown stars, links, and code blocks for clean voice audio
+    const cleanText = text
+      .replace(/[*#_`]/g, "")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .slice(0, 450); // Concise voice summary
+
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = language === "hi" ? "hi-IN" : "en-IN";
     utterance.rate = 0.95;
 
+    // Fix Chromium TTS 15-second automatic pause bug
+    const timer = setInterval(() => {
+      if (!window.speechSynthesis.speaking) {
+        clearInterval(timer);
+      } else {
+        window.speechSynthesis.resume();
+      }
+    }, 4000);
+
     utterance.onend = () => {
+      clearInterval(timer);
       setIsSpeaking(false);
     };
 
     utterance.onerror = () => {
+      clearInterval(timer);
       setIsSpeaking(false);
     };
 
-    setIsSpeaking(true);
     window.speechSynthesis.speak(utterance);
+    setIsSpeaking(true);
   };
 
   const handleSendMessage = async (customText?: string) => {
@@ -786,6 +826,26 @@ Ask me anything! Here are popular queries:
               </button>
             ))}
           </div>
+
+          {/* Continuous Voice Active Banner */}
+          {isListening && (
+            <div className="flex items-center justify-between rounded-xl bg-rose-50 border border-rose-300 px-3.5 py-2 text-xs text-rose-900 shadow-2xs">
+              <span className="flex items-center gap-2 font-bold">
+                <span className="relative flex size-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full size-2.5 bg-rose-600"></span>
+                </span>
+                <span>🎙️ Microphone Active — Listening continuously across natural pauses.</span>
+              </span>
+              <button
+                type="button"
+                onClick={toggleListening}
+                className="text-[11px] font-black text-rose-800 underline hover:text-rose-950 cursor-pointer"
+              >
+                Finish Speaking
+              </button>
+            </div>
+          )}
 
           {/* Input Bar with Voice Toggle */}
           <div className="flex items-center gap-2">

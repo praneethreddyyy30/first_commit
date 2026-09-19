@@ -52,6 +52,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<
     "docs" | "roadmap" | "offline" | "copilot" | "dossier"
   >(initialSubTab);
+  const [showCedarProof, setShowCedarProof] = useState<boolean>(false);
 
   // Active scheme details
   const activeScheme: SchemeOrService = useMemo(() => {
@@ -107,6 +108,19 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             <p className="text-xs text-slate-600 font-medium">
               {activeScheme.ministry} • Benefit: <strong className="text-emerald-800">{activeScheme.benefitAmount}</strong>
             </p>
+
+            {/* AWS Cedar Inspection Toggle */}
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCedarProof((prev) => !prev)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50/90 px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 transition-all cursor-pointer shadow-xs"
+              >
+                <ShieldCheck className="size-3.5 text-amber-700" />
+                <span>{showCedarProof ? "Hide AWS Cedar Proof" : "Why Am I Eligible? (Inspect AWS Cedar Proof)"}</span>
+                <ChevronDown className={`size-3 transition-transform ${showCedarProof ? "rotate-180" : ""}`} />
+              </button>
+            </div>
           </div>
 
           {/* Scheme / Certificate Quick Switcher */}
@@ -143,6 +157,88 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             )}
           </div>
         </div>
+
+        {/* Collapsible AWS Cedar Deterministic Policy Proof */}
+        {showCedarProof && (
+          <div className="mt-4 p-4 rounded-2xl border border-amber-300/80 bg-amber-50/40 space-y-3 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="p-1 rounded bg-amber-200/80 text-amber-900 font-mono text-[10px] font-bold tracking-wider uppercase">
+                  AWS Cedar WASM v4.13.0
+                </span>
+                <span className="text-xs font-bold text-amber-950">
+                  Deterministic Statutory Policy Evaluation Proof
+                </span>
+              </div>
+              <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                currentEvalResult?.decision === "ALLOW"
+                  ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                  : "bg-rose-100 text-rose-800 border border-rose-300"
+              }`}>
+                Decision: {currentEvalResult?.decision || "ALLOW"} ({currentEvalResult?.fitScore || 100}% Fit)
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-700">
+              AWS Cedar evaluates your eligibility using formal declarative logic compiled into high-speed WebAssembly. No probabilistic LLMs or hallucination—only deterministic statutory verification.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {/* Passed Clauses */}
+              <div className="p-3 rounded-xl bg-white border border-emerald-200 shadow-2xs">
+                <div className="text-[11px] font-bold text-emerald-800 flex items-center gap-1.5 mb-1.5">
+                  <span className="size-2 rounded-full bg-emerald-500"></span>
+                  Passed Statutory Conditions ({currentEvalResult?.passedClauses?.length || 0})
+                </div>
+                {currentEvalResult?.passedClauses && currentEvalResult.passedClauses.length > 0 ? (
+                  <ul className="space-y-1 text-xs text-slate-700">
+                    {currentEvalResult.passedClauses.map((clause, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-emerald-600 font-bold">✓</span>
+                        <span>{clause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">All baseline criteria satisfied.</p>
+                )}
+              </div>
+
+              {/* Failed Clauses / Remarks */}
+              <div className="p-3 rounded-xl bg-white border border-slate-200 shadow-2xs">
+                <div className="text-[11px] font-bold text-slate-800 flex items-center gap-1.5 mb-1.5">
+                  <span className="size-2 rounded-full bg-amber-500"></span>
+                  Failed / Unmet Conditions ({currentEvalResult?.failedClauses?.length || 0})
+                </div>
+                {currentEvalResult?.failedClauses && currentEvalResult.failedClauses.length > 0 ? (
+                  <ul className="space-y-1 text-xs text-rose-700">
+                    {currentEvalResult.failedClauses.map((clause, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5">
+                        <span className="text-rose-600 font-bold">✕</span>
+                        <span>{clause}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-emerald-700 font-medium">None! Zero disqualifying statutory conditions.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Cedar Policy Code */}
+            {currentEvalResult?.cedarPolicySnippet && (
+              <div className="space-y-1 pt-1">
+                <div className="text-[11px] font-bold text-slate-700 flex items-center justify-between">
+                  <span>Cedar Authorization Policy (DSL)</span>
+                  <span className="text-[10px] text-slate-500 font-mono">Principal::Citizen</span>
+                </div>
+                <pre className="p-3 rounded-xl bg-slate-900 text-emerald-400 font-mono text-[11px] overflow-x-auto leading-relaxed border border-slate-800">
+                  {currentEvalResult.cedarPolicySnippet}
+                </pre>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 2. SCHEME WORKSPACE NAVIGATION TABS (MATCHING USER'S HAND-DRAWN SPEC) */}
         <div className="pt-4 flex flex-wrap items-center gap-2">

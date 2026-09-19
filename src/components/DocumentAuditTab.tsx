@@ -90,18 +90,12 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
 
   const [activeSchemeId, setActiveSchemeId] = useState<string>(defaultSchemeId);
 
-  // Sync if prop or state changes
+  // Sync if prop changes (strictly respect user selection)
   useEffect(() => {
     if (selectedSchemeId) {
-      if (profile?.state === "Andhra Pradesh" && selectedSchemeId.startsWith("TN_")) {
-        setActiveSchemeId("AP_Jagananna_Vidya_Deevena");
-      } else if (profile?.state === "Tamil Nadu" && selectedSchemeId.startsWith("AP_")) {
-        setActiveSchemeId("TN_Pudhumai_Penn");
-      } else {
-        setActiveSchemeId(selectedSchemeId);
-      }
+      setActiveSchemeId(selectedSchemeId);
     }
-  }, [selectedSchemeId, profile?.state]);
+  }, [selectedSchemeId]);
 
   const currentScheme: SchemeOrService = useMemo(() => {
     return (
@@ -136,6 +130,30 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     extractedName: initialInput.nameOnAadhaar || profile?.name || "Kavitha Selvam",
     extractedId: "38920192819"
   });
+
+  // Dynamic Scheme-Specific Document Upload State
+  const [schemeUploadedDocs, setSchemeUploadedDocs] = useState<
+    Record<string, { fileName: string; size: string; status: "VERIFIED" | "PENDING" }>
+  >({});
+
+  const handleSchemeDocUpload = (docName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const sizeStr =
+      file.size > 1024 * 1024
+        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.round(file.size / 1024)} KB`;
+
+    setSchemeUploadedDocs((prev) => ({
+      ...prev,
+      [docName]: {
+        fileName: file.name,
+        size: sizeStr,
+        status: "VERIFIED",
+      },
+    }));
+  };
 
   // Sync state whenever initialInput or profile changes
   useEffect(() => {
@@ -986,6 +1004,99 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               </span>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* DYNAMIC SCHEME-SPECIFIC MANDATORY DOCUMENTS & PREREQUISITES CHECKLIST */}
+      <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-5 border-[#DFB738]/60 bg-gradient-to-br from-amber-50/20 to-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-[#EDE6DD] gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex size-9 items-center justify-center rounded-xl bg-[#0B1B4F] text-[#F5E29F] shadow-xs">
+              <FileCheck2 className="size-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-bold text-amber-900 border border-amber-300">
+                  {currentScheme.shortCode} Specific
+                </span>
+                <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                  Gazette Rule Section 4
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-[#0B1B4F] font-serif mt-1">
+                Mandatory Documents Checklist for {currentScheme.title}
+              </h3>
+              <p className="text-xs text-slate-600">
+                Official statutory certificates required specifically for this scheme. Upload each file to prevent rejection at Seva Center desks.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className="rounded-full bg-white border border-[#DFC8A5] px-3.5 py-1 text-xs font-mono font-bold text-[#0B1B4F]">
+              {Object.keys(schemeUploadedDocs).length} / {currentScheme.mandatoryDocuments.length} Uploaded
+            </span>
+          </div>
+        </div>
+
+        {/* Dynamic Mandatory Documents Grid */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          {currentScheme.mandatoryDocuments.map((docName, idx) => {
+            const isUploaded = Boolean(schemeUploadedDocs[docName]);
+            const uploadedInfo = schemeUploadedDocs[docName];
+
+            return (
+              <div
+                key={idx}
+                className={`rounded-xl border p-4 transition-all flex flex-col justify-between ${
+                  isUploaded
+                    ? "border-emerald-300 bg-emerald-50/40 shadow-xs"
+                    : "border-dashed border-[#DFC8A5] bg-white hover:bg-[#FAF7F2]/60"
+                }`}
+              >
+                <div>
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-mono text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      Doc #{idx + 1}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider ${
+                        isUploaded
+                          ? "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                          : "bg-amber-100 text-amber-900 border border-amber-200"
+                      }`}
+                    >
+                      {isUploaded ? <CheckCircle className="size-2.5" /> : null}
+                      {isUploaded ? "Uploaded" : "Pending"}
+                    </span>
+                  </div>
+
+                  <h5 className="text-xs font-bold text-[#0B1B4F] mt-1.5 leading-snug font-serif">
+                    {docName}
+                  </h5>
+
+                  {isUploaded && uploadedInfo && (
+                    <div className="mt-2 text-[11px] text-emerald-900 bg-white/80 p-2 rounded-lg border border-emerald-200 font-mono">
+                      <span>📄 {uploadedInfo.fileName}</span> • <span>{uploadedInfo.size}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <label className="flex items-center justify-center gap-1.5 rounded-lg border border-[#DFC8A5] bg-white hover:bg-[#FAF7F2] py-1.5 px-3 text-xs font-bold text-[#0B1B4F] cursor-pointer transition-all shadow-2xs">
+                    <Upload className="size-3 text-[#0B1B4F]" />
+                    <span>{isUploaded ? "Replace Document" : "Upload Document"}</span>
+                    <input
+                      type="file"
+                      accept="image/*,application/pdf"
+                      className="hidden"
+                      onChange={(e) => handleSchemeDocUpload(docName, e)}
+                    />
+                  </label>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
