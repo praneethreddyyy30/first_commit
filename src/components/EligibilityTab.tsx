@@ -327,7 +327,10 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
       </div>
 
       {/* Scheme Cards Grid */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+      <div
+        key={`${eligibilityTab}-${categoryFilter}`}
+        className="grid grid-cols-1 gap-5 md:grid-cols-2 animate-tab-enter"
+      >
         {displayedResults.map((result) => {
           const { scheme, decision, matchedReasons, failedReasons, missingPrerequisites } = result;
           const isEligible = decision === "ALLOW";

@@ -352,7 +352,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
       </div>
 
       {/* 3. WORKSPACE SUB-VIEW CONTENT (SCOPED STRICTLY TO THIS ONE SCHEME) */}
-      <div>
+      <div key={`${activeScheme.id}-${activeSubTab}`} className="animate-tab-enter">
         {/* SUB-VIEW 1: Docs Verified */}
         {activeSubTab === "docs" && (
           <DocumentAuditTab

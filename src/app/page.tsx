@@ -336,8 +336,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab Views */}
-        <div>
+        {/* Tab Views with fluid enter animation */}
+        <div key={activeTab} className="animate-tab-enter">
           {/* View 1: Citizen Master Profile Page (Step 1) */}
           {activeTab === "profile" && (
             <CitizenProfilePage
