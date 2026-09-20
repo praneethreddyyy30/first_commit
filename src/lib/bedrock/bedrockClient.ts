@@ -54,9 +54,8 @@ async function callGroqChat(
 
   const candidateModels = [
     "openai/gpt-oss-120b",
-    "qwen/qwen3.8-27b",
-    "llama-3.3-70b-versatile",
     "openai/gpt-oss-20b",
+    "qwen/qwen3.8-27b",
   ];
 
   for (const model of candidateModels) {
@@ -73,6 +72,7 @@ async function callGroqChat(
           temperature: 0.2,
           max_tokens: 2500,
         }),
+        signal: AbortSignal.timeout(8000),
       });
 
       if (res.ok) {
@@ -263,6 +263,7 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
     try {
       const client = new BedrockRuntimeClient({
         region: awsRegion,
+        maxAttempts: 1,
         credentials: {
           accessKeyId: accessKeyId.trim(),
           secretAccessKey: secretAccessKey.trim(),

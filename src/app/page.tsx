@@ -213,7 +213,18 @@ export default function Home() {
   const handleResetToBlank = () => {
     handleProfileChange(BLANK_CITIZEN_PROFILE);
     setAuditInput(BLANK_CITIZEN_AUDIT);
+    setTabDirection("left");
     setActiveTab("profile");
+  };
+
+  // Directional Tab Switch Animation State
+  const TAB_ORDER: Record<string, number> = { profile: 0, schemes: 1, workspace: 2 };
+  const [tabDirection, setTabDirection] = useState<"left" | "right">("right");
+
+  const handleTabSwitch = (newTab: "profile" | "schemes" | "workspace") => {
+    if (newTab === activeTab) return;
+    setTabDirection(TAB_ORDER[newTab] >= TAB_ORDER[activeTab] ? "right" : "left");
+    setActiveTab(newTab);
   };
 
   // Reset scroll to top whenever active tab changes
@@ -237,6 +248,7 @@ export default function Home() {
   ) => {
     setTargetSchemeId(schemeId);
     setWorkspaceSubTab(subTab);
+    setTabDirection("right");
     setActiveTab("workspace");
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
@@ -272,7 +284,7 @@ export default function Home() {
           <div className="flex w-max min-w-full space-x-1.5 rounded-2xl bg-[#0B1B4F] p-1.5 shadow-luxury border border-[#142A6F]">
             {/* Step 1: Citizen Master Profile */}
             <button
-              onClick={() => setActiveTab("profile")}
+              onClick={() => handleTabSwitch("profile")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "profile"
                   ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
@@ -288,7 +300,7 @@ export default function Home() {
 
             {/* Step 2: Schemes & Certificates */}
             <button
-              onClick={() => setActiveTab("schemes")}
+              onClick={() => handleTabSwitch("schemes")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "schemes"
                   ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
@@ -304,7 +316,7 @@ export default function Home() {
 
             {/* Step 3: Dedicated Scheme Workspace */}
             <button
-              onClick={() => setActiveTab("workspace")}
+              onClick={() => handleTabSwitch("workspace")}
               className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "workspace"
                   ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
@@ -336,8 +348,11 @@ export default function Home() {
           </div>
         )}
 
-        {/* Tab Views with fluid enter animation */}
-        <div key={activeTab} className="animate-tab-enter">
+        {/* Tab Views with fluid directional slide animation */}
+        <div
+          key={activeTab}
+          className={tabDirection === "right" ? "animate-tab-slide-right" : "animate-tab-slide-left"}
+        >
           {/* View 1: Citizen Master Profile Page (Step 1) */}
           {activeTab === "profile" && (
             <CitizenProfilePage
@@ -345,7 +360,7 @@ export default function Home() {
               evaluationResults={evaluationResults}
               onProfileChange={handleProfileChange}
               onAuditInputChange={(newAudit) => setAuditInput(newAudit)}
-              onNavigateToSchemes={() => setActiveTab("schemes")}
+              onNavigateToSchemes={() => handleTabSwitch("schemes")}
               onNavigateToAudit={() => handleOpenSchemeWorkspace(targetSchemeId, "docs")}
             />
           )}
@@ -356,7 +371,7 @@ export default function Home() {
               profile={profile}
               evaluationResults={evaluationResults}
               onProfileChange={handleProfileChange}
-              onNavigateToProfile={() => setActiveTab("profile")}
+              onNavigateToProfile={() => handleTabSwitch("profile")}
               onNavigateToDocuments={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
               onNavigateToRoadmap={(schemeId) => handleOpenSchemeWorkspace(schemeId, "roadmap")}
               onSelectSchemeForWorkspace={(schemeId) => handleOpenSchemeWorkspace(schemeId, "docs")}
@@ -374,7 +389,7 @@ export default function Home() {
               schemeId={targetSchemeId}
               allSchemes={schemes}
               onSelectScheme={(id) => setTargetSchemeId(id)}
-              onBackToSchemes={() => setActiveTab("schemes")}
+              onBackToSchemes={() => handleTabSwitch("schemes")}
               profile={profile}
               evaluationResults={evaluationResults}
               auditInput={auditInput}

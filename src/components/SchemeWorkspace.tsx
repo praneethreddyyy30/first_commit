@@ -55,6 +55,22 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
   >(initialSubTab);
   const [showCedarProof, setShowCedarProof] = useState<boolean>(false);
 
+  // Directional subtab transition state
+  const SUBTAB_ORDER: Record<string, number> = {
+    docs: 0,
+    roadmap: 1,
+    offline: 2,
+    copilot: 3,
+    dossier: 4,
+  };
+  const [subTabDirection, setSubTabDirection] = useState<"left" | "right">("right");
+
+  const handleSubTabChange = (newSubTab: "docs" | "roadmap" | "offline" | "copilot" | "dossier") => {
+    if (newSubTab === activeSubTab) return;
+    setSubTabDirection(SUBTAB_ORDER[newSubTab] >= SUBTAB_ORDER[activeSubTab] ? "right" : "left");
+    setActiveSubTab(newSubTab);
+  };
+
   // Auto-scroll to top when Scheme Workspace is opened or schemeId changes
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -271,10 +287,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
         <div className="pt-4 flex flex-wrap items-center gap-2">
           {/* Sub-Tab 1: Docs Verified */}
           <button
-            onClick={() => setActiveSubTab("docs")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => handleSubTabChange("docs")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === "docs"
-                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60"
+                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60 scale-[1.02]"
                 : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-[#EDE6DD]"
             }`}
           >
@@ -289,10 +305,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
 
           {/* Sub-Tab 2: Roadmap */}
           <button
-            onClick={() => setActiveSubTab("roadmap")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => handleSubTabChange("roadmap")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === "roadmap"
-                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60"
+                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60 scale-[1.02]"
                 : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-[#EDE6DD]"
             }`}
           >
@@ -302,10 +318,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
 
           {/* Sub-Tab 3: Seva Centers & Fees (District Centric) */}
           <button
-            onClick={() => setActiveSubTab("offline")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => handleSubTabChange("offline")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === "offline"
-                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60"
+                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60 scale-[1.02]"
                 : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-[#EDE6DD]"
             }`}
           >
@@ -322,10 +338,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
 
           {/* Sub-Tab 4: AI Civic Assistant */}
           <button
-            onClick={() => setActiveSubTab("copilot")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => handleSubTabChange("copilot")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === "copilot"
-                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60"
+                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60 scale-[1.02]"
                 : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-[#EDE6DD]"
             }`}
           >
@@ -338,10 +354,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
 
           {/* Sub-Tab 5: Download Dossier */}
           <button
-            onClick={() => setActiveSubTab("dossier")}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer ${
+            onClick={() => handleSubTabChange("dossier")}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition-all cursor-pointer active:scale-95 ${
               activeSubTab === "dossier"
-                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60"
+                ? "bg-[#0B1B4F] text-[#F5E29F] shadow-sm ring-2 ring-[#DFB738]/60 scale-[1.02]"
                 : "bg-white text-slate-700 hover:bg-amber-50 hover:text-amber-900 border border-[#EDE6DD]"
             }`}
           >
@@ -352,7 +368,10 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
       </div>
 
       {/* 3. WORKSPACE SUB-VIEW CONTENT (SCOPED STRICTLY TO THIS ONE SCHEME) */}
-      <div key={`${activeScheme.id}-${activeSubTab}`} className="animate-tab-enter">
+      <div
+        key={`${activeScheme.id}-${activeSubTab}`}
+        className={subTabDirection === "right" ? "animate-tab-slide-right" : "animate-tab-slide-left"}
+      >
         {/* SUB-VIEW 1: Docs Verified */}
         {activeSubTab === "docs" && (
           <DocumentAuditTab
@@ -364,7 +383,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             onProfileChange={onProfileChange}
             onAuditInputChange={onAuditInputChange}
             onNavigateToEligibility={onBackToSchemes}
-            onNavigateToRoadmap={() => setActiveSubTab("roadmap")}
+            onNavigateToRoadmap={() => handleSubTabChange("roadmap")}
           />
         )}
 

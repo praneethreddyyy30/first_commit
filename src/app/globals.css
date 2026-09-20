@@ -126,36 +126,67 @@ h1, h2, h3, .font-serif {
   scrollbar-width: none;
 }
 
-/* Fluid Tab & View Transition Animations */
-@keyframes tabFadeSlide {
+/* Bulletproof Fluid Tab & View Transition Animations */
+@keyframes tabEnter {
   0% {
     opacity: 0;
-    transform: translateY(16px);
-    filter: blur(4px);
+    transform: translateY(20px) scale(0.985);
   }
   100% {
     opacity: 1;
-    transform: translateY(0);
-    filter: blur(0px);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tabSlideFromRight {
+  0% {
+    opacity: 0;
+    transform: translateX(28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tabSlideFromLeft {
+  0% {
+    opacity: 0;
+    transform: translateX(-28px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes tabFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
   }
 }
 
 .animate-tab-enter {
-  animation: tabFadeSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform, filter;
+  animation: tabEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
 }
 
-@keyframes fadeIn {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
+.animate-tab-slide-right {
+  animation: tabSlideFromRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
+}
+
+.animate-tab-slide-left {
+  animation: tabSlideFromLeft 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform;
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: tabFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
 
 
