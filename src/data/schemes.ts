@@ -579,10 +579,10 @@ when {
     daysRemaining: 365,
     prerequisites: [],
     mandatoryDocuments: [
-      "Paternal Blood Relative Caste Certificate (Father, Paternal Grandfather, or Uncle)",
-      "Land Record / Record of Rights (RoR / Khatian) establishing ancestral residence",
-      "Applicant Aadhaar Card and School Leaving Certificate (SLC) citing community",
-      "Self-Declaration Affidavit stamped by Notary / Magistrate"
+      "Applicant Aadhaar Card with active mobile link",
+      "Father's or Blood Relative Caste Certificate (or School Transfer Certificate)",
+      "Family Ration Card or Resident Proof",
+      "Self-Declaration Community Affidavit"
     ],
     offlineSubmission: {
       centerName: "Tehsildar / Sub-Divisional Magistrate (SDM) Office or Local CSC Center",

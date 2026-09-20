@@ -537,15 +537,7 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-1">
-                  <button
-                    onClick={() => setSelectedCockpitResult(result)}
-                    className="flex items-center gap-1 text-xs font-bold text-[#0B1B4F] hover:text-[#854D0E] hover:underline cursor-pointer"
-                  >
-                    <span>Open Scheme Cockpit & Action Tracker</span>
-                    <ArrowRight className="size-3.5 text-[#854D0E]" />
-                  </button>
-
+                <div className="flex items-center justify-end pt-1">
                   <button
                     onClick={() => togglePolicyView(scheme.id)}
                     className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-[#0B1B4F] cursor-pointer"

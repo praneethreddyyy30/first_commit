@@ -325,6 +325,141 @@ export const SCHEME_ROADMAPS: Record<string, SchemeRoadmapBase> = {
     ],
   },
 
+  // --- STATUTORY REVENUE SERVICE: CASTE / TRIBE CERTIFICATE ---
+  Caste_Certificate: {
+    schemeId: "Caste_Certificate",
+    schemeTitle: "Permanent Caste / Tribe / Community Certificate (SC / ST / OBC)",
+    shortCode: "REV-CERT-CASTE",
+    type: "certificate",
+    categoryLabel: "Statutory Revenue Certificate (Permanent Validity)",
+    sponsoringBody: "State Revenue Department & District Magistrate Administration",
+    benefitHeadline: "Permanent Statutory Legal Certificate for Educational Reservations, Fee Waivers & Government Schemes",
+    statutoryTimeLimit: "21 Days (State Right to Public Services Act SLA)",
+    officialFee: "₹15 – ₹30 (Official RTSA Service Charge; ₹0 cyber cafe extortion)",
+    portalName: "State e-District / MeeSeva / RTPS Portal",
+    portalUrl: "https://services.india.gov.in",
+    offlineCounter: "Tahsildar / Mandal Revenue Office (MRO) Citizen Service Counter #1",
+    processMode: "HYBRID",
+    processModeLabel: "⚡ Hybrid Workflow: Online Submission + Local Revenue Field Inquiry",
+    processModeDescription: "Initial application is filed via state portal (e-District, MeeSeva, e-Sevai, RTPS) or CSC kiosk, followed by mandatory local Village Revenue Officer (VRO) inquiry and Tahsildar digital signature.",
+    tier1BaseIdentity: [
+      {
+        name: "Aadhaar Card of Applicant",
+        requirement: "Active mobile linked for digital e-KYC and address verification",
+        mandatory: true,
+      },
+      {
+        name: "School Transfer Certificate (TC) / Marksheet",
+        requirement: "Original memo citing recorded community / social category",
+        mandatory: true,
+      },
+      {
+        name: "Active Mobile & Email",
+        requirement: "For SMS application dispatch notifications and digital download PIN",
+        mandatory: true,
+      },
+    ],
+    tier2StatutoryCertificates: [
+      {
+        certificateId: "Father_Caste_Certificate",
+        name: "Father's / Blood Relative Caste Certificate",
+        authority: "Tahsildar / Sub-Divisional Officer",
+        turnaround: "Issued Document",
+        statutoryCost: "₹0 (Existing Record)",
+        validity: "Permanent",
+        keyCondition: "Patrilineal proof establishing hereditary social category entitlement under civil law",
+      },
+      {
+        certificateId: "Ration_Card_Residence",
+        name: "Family Ration Card / Domicile Proof",
+        authority: "Food & Civil Supplies Department",
+        turnaround: "Issued Document",
+        statutoryCost: "₹0 (Existing Record)",
+        validity: "Active",
+        keyCondition: "Proof of long-standing residence in the state jurisdiction",
+      },
+    ],
+    tier3Institutional: [
+      {
+        name: "Self-Declaration Community Affidavit",
+        authority: "Notary Public / Executive Magistrate",
+        action: "Sworn legal declaration on non-judicial stamp paper affirming family community status",
+        category: "Civic",
+      },
+      {
+        name: "VRO Field Inspection Panchanama",
+        authority: "Village Revenue Officer (VRO) / Revenue Inspector",
+        action: "Local field inquiry verifying applicant's community standing and neighborhood reputation",
+        category: "Civic",
+      },
+    ],
+    bankingRequirement: "No bank account required for certificate issuance. Digital certificate with QR barcode is issued directly into DigiLocker and citizen portal.",
+    stages: [
+      {
+        stageNumber: 1,
+        stageName: "Online Portal / CSC Kiosk Submission",
+        actor: "Citizen / CSC Operator",
+        officeType: "MeeSeva / e-Sevai / e-District Citizen Counter",
+        timeline: "Day 1 (Instant)",
+        description: "Submit application form along with Aadhaar, father's caste proof, and school record. Pay official statutory fee of ₹25–30 and obtain computerized receipt with acknowledgment number.",
+        actionItem: "Collect computerized acknowledgment receipt bearing unique application number.",
+        commonPitfall: "Paying ₹200–500 to private middlemen. Statutory fee is strictly ₹25–30.",
+        stageMode: "HYBRID",
+        portalLink: "https://services.india.gov.in",
+        portalActionText: "Open National Services Portal",
+        physicalDeskLocation: "MeeSeva / CSC Digital Seva Kiosk / Taluk Reception Desk",
+      },
+      {
+        stageNumber: 2,
+        stageName: "Village Revenue Officer (VRO) Field Verification",
+        actor: "Village Revenue Officer (VRO)",
+        officeType: "Village Secretariat / Gram Panchayat Desk",
+        timeline: "Within 7 Days",
+        description: "VRO inspects records, conducts local community inquiry, verifies father's land/caste details, and submits spot Panchanama to Revenue Inspector.",
+        actionItem: "Be accessible in your village/locality and keep original family caste proofs ready for physical inspection.",
+        commonPitfall: "Unavailability during spot field verification causing delay or pending inquiry status.",
+        stageMode: "OFFLINE",
+        physicalDeskLocation: "Village Secretariat (Grama Sachivalayam) / Taluk VRO Desk",
+      },
+      {
+        stageNumber: 3,
+        stageName: "Revenue Inspector (RI) Scrutiny & Endorsement",
+        actor: "Revenue Inspector (RI)",
+        officeType: "Mandal / Hobli Revenue Office",
+        timeline: "Within 14 Days",
+        description: "RI scrutinizes VRO field inquiry report against state caste gazette schedules and forwards recommendation to Tahsildar.",
+        actionItem: "Track application progress online via MeeSeva/e-District acknowledgment number.",
+        commonPitfall: "Discrepancy in spelling of sub-caste between applicant school record and father's certificate.",
+        stageMode: "ONLINE",
+        physicalDeskLocation: "Mandal / Taluk Office — Revenue Inspector Section",
+      },
+      {
+        stageNumber: 4,
+        stageName: "Tahsildar / MRO Statutory Approval & Digital Signature",
+        actor: "Tahsildar / Mandal Revenue Officer (MRO)",
+        officeType: "Tahsildar Executive Court",
+        timeline: "Within 21 Days (Statutory RTSA SLA)",
+        description: "Tahsildar issues statutory sanction, applies Class-2 digital signature, and system embeds verifiable QR code and 16-digit barcoded certificate ID.",
+        actionItem: "Download digital certificate directly from portal or pull into DigiLocker; collect printed copy from CSC center.",
+        commonPitfall: "Laminated certificates with unreadable QR codes. Always retain the original digital PDF.",
+        stageMode: "ONLINE",
+        portalLink: "https://services.india.gov.in",
+        portalActionText: "Download Digital Caste Certificate",
+        physicalDeskLocation: "Tahsildar Citizen Delivery Counter #1",
+      },
+    ],
+    rejectionChecklist: [
+      {
+        check: "Does the sub-caste name match the official state gazette schedule exactly?",
+        resolution: "Ensure the community name matches the government gazette spelling rather than colloquial local titles.",
+      },
+      {
+        check: "Do you have patrilineal community proof from the father's bloodline?",
+        resolution: "Under civil law, social status is patrilineal. Provide father's, grandfather's, or real uncle's caste certificate.",
+      },
+    ],
+  },
+
   // --- MEDICAL & HEALTHCARE EXPENSES ---
   Ayushman_PMJAY: {
     schemeId: "Ayushman_PMJAY",
@@ -2249,11 +2384,18 @@ export const SCHEME_ROADMAPS: Record<string, SchemeRoadmapBase> = {
 
 // 2. HELPER: Get Dedicated Roadmap for Any Scheme
 export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRoadmap {
-  const schemeId = typeof schemeOrId === "string" ? schemeOrId : schemeOrId.id;
-  const scheme = SCHEMES_DATABASE.find((s) => s.id === schemeId);
+  const inputId = typeof schemeOrId === "string" ? schemeOrId : schemeOrId.id;
+  const scheme = SCHEMES_DATABASE.find(
+    (s) =>
+      s.id === inputId ||
+      s.shortCode === inputId ||
+      s.id.toLowerCase() === inputId.toLowerCase() ||
+      s.shortCode.toLowerCase() === inputId.toLowerCase()
+  );
+  const schemeId = scheme ? scheme.id : inputId;
 
   // If already explicitly configured in SCHEME_ROADMAPS
-  const existing = SCHEME_ROADMAPS[schemeId];
+  const existing = SCHEME_ROADMAPS[schemeId] || SCHEME_ROADMAPS[inputId];
   if (existing) {
     // Derive mode if not explicitly set
     const processMode: SchemeProcessMode = existing.processMode || (
@@ -2748,26 +2890,44 @@ export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRo
           ? "Gram Sabha Quorum Resolution"
           : type === "healthcare"
           ? "Hospital Doctor Referral & Estimate"
+          : type === "certificate"
+          ? "Self-Declaration Affidavit / Notary Attestation"
           : "College Bonafide Student Certificate",
         authority: isForestOrLandRights
           ? "Village Gram Sabha (Presided by FRC Chairperson)"
           : type === "healthcare"
           ? "Government Medical Superintendent"
+          : type === "certificate"
+          ? "Notary Public / Oath Commissioner"
           : "College Principal / Registrar",
-        action: "Official verification on institutional letterhead / register",
-        category: type === "healthcare" ? "Healthcare" : isForestOrLandRights ? "Civic" : "Academic",
+        action: type === "certificate"
+          ? "Sworn legal declaration on non-judicial stamp paper affirming eligibility criteria"
+          : "Official verification on institutional letterhead / register",
+        category: type === "healthcare" ? "Healthcare" : isForestOrLandRights || type === "certificate" ? "Civic" : "Academic",
       },
       {
-        name: isForestOrLandRights ? "Joint Forest Beat & Revenue Survey GPS Map" : "Aadhaar NPCI DBT Bank Account",
-        authority: isForestOrLandRights ? "Mandal Revenue Surveyor & Forest Beat Officer" : "Nationalized Bank Branch",
+        name: isForestOrLandRights
+          ? "Joint Forest Beat & Revenue Survey GPS Map"
+          : type === "certificate"
+          ? "Local Revenue Field Inquiry (VRO / RI)"
+          : "Aadhaar NPCI DBT Bank Account",
+        authority: isForestOrLandRights
+          ? "Mandal Revenue Surveyor & Forest Beat Officer"
+          : type === "certificate"
+          ? "Village Revenue Officer (VRO) / Revenue Inspector"
+          : "Nationalized Bank Branch",
         action: isForestOrLandRights
           ? "Demarcation of physical boundaries signed on field Panchanama"
+          : type === "certificate"
+          ? "On-ground family standing and demographic verification report submitted to Tahsildar"
           : "Account must be seeded on NPCI DBT Mapper for electronic fund transfer",
-        category: isForestOrLandRights ? "Civic" : "Banking",
+        category: isForestOrLandRights || type === "certificate" ? "Civic" : "Banking",
       },
     ],
     bankingRequirement: isForestOrLandRights
       ? "No bank account required. Title deed is registered directly in state land records."
+      : type === "certificate"
+      ? "No bank account required. Statutory certificate is issued directly with digital QR barcode to DigiLocker."
       : "Aadhaar seeded bank account on NPCI mapper for Direct Benefit Transfer.",
     stages: dynamicStages,
     rejectionChecklist: isForestOrLandRights

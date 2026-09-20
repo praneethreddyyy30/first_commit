@@ -81,6 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section: Badges & Persona Switcher */}
         <div className="flex items-center gap-3">
+
           {/* Client Selector Dropdown */}
           <div className="relative">
             <button
