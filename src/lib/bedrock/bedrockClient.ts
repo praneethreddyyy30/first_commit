@@ -37,7 +37,7 @@ export interface CopilotContext {
 }
 
 /**
- * Ultra-fast Groq Cloud inference (Llama 3.3 70B Versatile)
+ * Ultra-fast Groq Cloud inference
  * Free, instantaneous, zero credit card required (https://console.groq.com/keys)
  */
 async function callGroqChat(
@@ -45,34 +45,49 @@ async function callGroqChat(
   systemPrompt: string,
   history: ChatMessage[],
   userQuery: string
-): Promise<string> {
+): Promise<{ text: string; model: string }> {
   const messages = [
     { role: "system", content: systemPrompt },
     ...history.filter((m) => m.role !== "system").map((m) => ({ role: m.role, content: m.content })),
     { role: "user", content: userQuery },
   ];
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey.trim()}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      messages,
-      temperature: 0.6,
-      max_tokens: 1200,
-    }),
-  });
+  const candidateModels = [
+    "openai/gpt-oss-120b",
+    "qwen/qwen3.8-27b",
+    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-20b",
+  ];
 
-  if (!res.ok) {
-    const errText = await res.text();
-    throw new Error(`Groq API error (${res.status}): ${errText}`);
+  for (const model of candidateModels) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey.trim()}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.6,
+          max_tokens: 1200,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content || "";
+        if (content.trim()) {
+          return { text: content, model };
+        }
+      }
+    } catch {
+      // try next candidate model
+    }
   }
 
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content || "";
+  throw new Error("No candidate Groq models were reachable with this API key.");
 }
 
 /**
@@ -305,12 +320,12 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
   const groqKey = customCredentials?.groqApiKey || process.env.GROQ_API_KEY;
   if (groqKey && groqKey.trim().length > 10) {
     try {
-      const groqAnswer = await callGroqChat(groqKey, systemPrompt, history, userQuery);
-      if (groqAnswer && groqAnswer.trim()) {
+      const groqResult = await callGroqChat(groqKey, systemPrompt, history, userQuery);
+      if (groqResult && groqResult.text.trim()) {
         return {
-          answer: groqAnswer,
+          answer: groqResult.text,
           source: "GROQ_LLAMA_LIVE",
-          modelUsed: "Meta Llama 3.3 70B (via Groq Cloud)",
+          modelUsed: `Groq Cloud (${groqResult.model})`,
         };
       }
     } catch (groqErr) {
