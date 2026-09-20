@@ -81,18 +81,6 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Section: Badges & Persona Switcher */}
         <div className="flex items-center gap-3">
-          <div className="hidden lg:flex items-center gap-2.5 bg-[#FAF4EB] border border-[#E8DCCB] px-3.5 py-1.5 rounded-xl">
-            <span className="text-xl">🇮🇳</span>
-            <div className="text-left">
-              <div className="text-[9px] font-black uppercase text-[#854D0E] tracking-wider font-display">
-                AZADI KA AMRIT MAHOTSAV
-              </div>
-              <div className="text-[10px] text-slate-600 font-medium">
-                100% Deterministic • Zero Hallucination
-              </div>
-            </div>
-          </div>
-
           {/* Client Selector Dropdown */}
           <div className="relative">
             <button
