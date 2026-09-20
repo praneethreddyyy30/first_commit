@@ -488,7 +488,9 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                   <button
                     onClick={() => {
                       if (typeof window !== "undefined") {
-                        window.scrollTo({ top: 0, behavior: "smooth" });
+                        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                        document.documentElement.scrollTop = 0;
+                        document.body.scrollTop = 0;
                       }
                       onSelectSchemeForWorkspace(scheme.id);
                     }}
@@ -504,7 +506,9 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                     <button
                       onClick={() => {
                         if (typeof window !== "undefined") {
-                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                          document.documentElement.scrollTop = 0;
+                          document.body.scrollTop = 0;
                         }
                         onNavigateToDocuments(scheme.id);
                       }}
@@ -519,7 +523,9 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                     <button
                       onClick={() => {
                         if (typeof window !== "undefined") {
-                          window.scrollTo({ top: 0, behavior: "smooth" });
+                          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                          document.documentElement.scrollTop = 0;
+                          document.body.scrollTop = 0;
                         }
                         onNavigateToRoadmap(scheme.id);
                       }}

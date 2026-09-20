@@ -58,9 +58,15 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
   // Auto-scroll to top when Scheme Workspace is opened or schemeId changes
   useEffect(() => {
     if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+      });
     }
-    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [schemeId]);
 
   // Keep activeSubTab in sync if parent changes initialSubTab
@@ -93,7 +99,9 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             <button
               onClick={() => {
                 if (typeof window !== "undefined") {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+                  document.documentElement.scrollTop = 0;
+                  document.body.scrollTop = 0;
                 }
                 onBackToSchemes();
               }}
