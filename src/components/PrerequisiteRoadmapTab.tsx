@@ -40,6 +40,7 @@ import { InteractiveApplicationTracker } from "@/components/InteractiveApplicati
 
 interface PrerequisiteRoadmapTabProps {
   initialSchemeId?: string;
+  activeScheme?: SchemeOrService;
   userHeldDocuments?: string[];
   userState?: string;
   onSelectScheme?: (schemeId: string) => void;
@@ -48,6 +49,7 @@ interface PrerequisiteRoadmapTabProps {
 
 export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
   initialSchemeId = "Ayushman_PMJAY",
+  activeScheme,
   userHeldDocuments = [],
   userState,
   onSelectScheme,
@@ -58,6 +60,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
 
   // Determine initial scheme
   const defaultScheme = useMemo(() => {
+    if (activeScheme?.id) return activeScheme.id;
     if (userState === "Andhra Pradesh" && (!initialSchemeId || initialSchemeId.startsWith("TN_"))) {
       return "AP_Jagananna_Vidya_Deevena";
     }
@@ -65,21 +68,23 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
       return "TN_Pudhumai_Penn";
     }
     return initialSchemeId || "Ayushman_PMJAY";
-  }, [initialSchemeId, userState]);
+  }, [activeScheme?.id, initialSchemeId, userState]);
 
   // Single Scheme State
   const [selectedSchemeId, setSelectedSchemeId] = useState<string>(defaultScheme);
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | "MY_STATE" | "CENTRAL" | "SCHOLARSHIP" | "HEALTHCARE" | "CERTIFICATE" | "OFFLINE">("ALL");
 
   React.useEffect(() => {
-    if (userState === "Andhra Pradesh" && initialSchemeId.startsWith("TN_")) {
+    if (activeScheme?.id) {
+      setSelectedSchemeId(activeScheme.id);
+    } else if (userState === "Andhra Pradesh" && initialSchemeId?.startsWith("TN_")) {
       setSelectedSchemeId("AP_Jagananna_Vidya_Deevena");
-    } else if (userState === "Tamil Nadu" && initialSchemeId.startsWith("AP_")) {
+    } else if (userState === "Tamil Nadu" && initialSchemeId?.startsWith("AP_")) {
       setSelectedSchemeId("TN_Pudhumai_Penn");
     } else if (initialSchemeId) {
       setSelectedSchemeId(initialSchemeId);
     }
-  }, [initialSchemeId, userState]);
+  }, [activeScheme?.id, initialSchemeId, userState]);
 
   // Merged Multi-Scheme State (Initialized smartly according to state)
   const [mergedSelection, setMergedSelection] = useState<string[]>(() => {
@@ -101,10 +106,13 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
     return initialMap;
   });
 
-  // Current Single Scheme Roadmap
+  // Current Single Scheme Roadmap (Prioritizes activeScheme in workspace mode)
   const currentRoadmap: SchemeRoadmap = useMemo(() => {
+    if (isWorkspaceMode && activeScheme) {
+      return getSchemeRoadmap(activeScheme);
+    }
     return getSchemeRoadmap(selectedSchemeId);
-  }, [selectedSchemeId]);
+  }, [isWorkspaceMode, activeScheme, selectedSchemeId]);
 
   // Merged Roadmap Calculation
   const mergedData = useMemo(() => {
@@ -656,7 +664,7 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                       <p className="text-xs text-slate-500 italic">
                         {currentRoadmap.type === "certificate"
                           ? "Statutory revenue service: Verified directly by Tahsildar / Revenue Inspector field inquiry."
-                          : "No special caste or community certificates mandated for this general scheme."}
+                          : "No special statutory caste or income certificates mandated for this universal service."}
                       </p>
                     ) : (
                       <ul className="space-y-2.5">

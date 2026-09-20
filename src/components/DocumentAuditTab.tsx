@@ -43,6 +43,7 @@ import {
 interface DocumentAuditTabProps {
   initialInput: DocumentAuditInput;
   selectedSchemeId?: string;
+  scheme?: SchemeOrService;
   profile?: UserProfile;
   onSelectScheme?: (schemeId: string) => void;
   onProfileChange?: (newProfile: UserProfile) => void;
@@ -181,6 +182,7 @@ function getDocCategoryMeta(docTitle: string) {
 export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
   initialInput,
   selectedSchemeId,
+  scheme,
   profile,
   onSelectScheme,
   onProfileChange,
@@ -217,11 +219,12 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
   }, [selectedSchemeId]);
 
   const currentScheme: SchemeOrService = useMemo(() => {
+    if (scheme) return scheme;
     return (
       SCHEMES_DATABASE.find((s) => s.id === activeSchemeId) ||
       SCHEMES_DATABASE[0]
     );
-  }, [activeSchemeId]);
+  }, [scheme, activeSchemeId]);
 
   // Dynamic Scheme-Specific Document Upload State with Real-Time OCR
   const [schemeUploadedDocs, setSchemeUploadedDocs] = useState<Record<string, SchemeUploadedDocInfo>>({});

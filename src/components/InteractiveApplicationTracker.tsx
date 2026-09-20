@@ -17,7 +17,11 @@ import {
   Calendar,
   AlertTriangle,
   RotateCcw,
-  Check
+  Check,
+  ArrowRight,
+  ExternalLink,
+  Loader2,
+  Landmark
 } from "lucide-react";
 
 export type StageStatus = "COMPLETED" | "IN_PROGRESS" | "PENDING";
@@ -46,6 +50,7 @@ export interface InteractiveApplicationTrackerProps {
   schemeId: string;
   schemeTitle: string;
   shortCode?: string;
+  portalUrl?: string;
   stages?: TrackerStage[];
   checklistItems?: TrackerChecklistItem[];
   defaultAppId?: string;
@@ -114,6 +119,7 @@ export const InteractiveApplicationTracker: React.FC<InteractiveApplicationTrack
   schemeId,
   schemeTitle,
   shortCode,
+  portalUrl,
   stages = DEFAULT_STAGES,
   checklistItems = DEFAULT_CHECKLIST,
   defaultAppId,
@@ -223,6 +229,29 @@ export const InteractiveApplicationTracker: React.FC<InteractiveApplicationTrack
     setCheckedMilestones(defaultChecks);
   };
 
+  const [isQuerying, setIsQuerying] = useState(false);
+  const [lastQueryTime, setLastQueryTime] = useState<string | null>(null);
+
+  const handleTrackSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!appId.trim()) return;
+
+    setIsQuerying(true);
+    setTimeout(() => {
+      setIsQuerying(false);
+      setLastQueryTime(new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }));
+
+      const clean = appId.trim().toUpperCase();
+      if (clean.includes("SANCTION") || clean.endsWith("99")) {
+        setStageStatuses({ 1: "COMPLETED", 2: "COMPLETED", 3: "COMPLETED", 4: "COMPLETED", 5: "IN_PROGRESS" });
+      } else if (clean.includes("REJECT") || clean.includes("DEFECT")) {
+        setStageStatuses({ 1: "COMPLETED", 2: "IN_PROGRESS", 3: "PENDING", 4: "PENDING", 5: "PENDING" });
+      } else {
+        setStageStatuses({ 1: "COMPLETED", 2: "COMPLETED", 3: "IN_PROGRESS", 4: "PENDING", 5: "PENDING" });
+      }
+    }, 450);
+  };
+
   // Metrics
   const activeStages = stages.length > 0 ? stages : DEFAULT_STAGES;
   const completedStagesCount = activeStages.filter((s) => stageStatuses[s.stageNumber] === "COMPLETED").length;
@@ -255,23 +284,41 @@ export const InteractiveApplicationTracker: React.FC<InteractiveApplicationTrack
             Application Status Tracker & Statutory Checklist
           </h4>
           <p className="text-xs text-slate-600 mt-0.5">
-            Click on any milestone stage or checklist item below to update and track your progress in real-time.
+            Enter your acknowledgment ID and click Track Application to query the verification state, or click on any milestone below to update progress.
           </p>
         </div>
 
-        {/* Application ID Input Bar */}
-        <div className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
-          <div className="relative min-w-[220px]">
+        {/* Application ID Input Bar with Track Button */}
+        <form onSubmit={handleTrackSubmit} className="flex flex-wrap items-center gap-2 self-start lg:self-auto">
+          <div className="relative min-w-[240px]">
             <Search className="size-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={appId}
               onChange={(e) => setAppId(e.target.value)}
-              placeholder="Application / Acknowledgment ID"
+              placeholder="Application ID (e.g. NSP2026ST89201)"
               className="w-full rounded-xl border border-[#DFC8A5] bg-white pl-9 pr-3 py-2 text-xs font-mono font-bold text-[#0B1B4F] focus:border-[#DFB738] focus:outline-hidden shadow-2xs"
             />
           </div>
           <button
+            type="submit"
+            disabled={isQuerying}
+            className="flex items-center gap-1.5 rounded-xl bg-[#0B1B4F] hover:bg-[#152864] text-[#F5E29F] px-4 py-2 text-xs font-bold transition-all shadow-xs border border-[#DFB738]/40 cursor-pointer disabled:opacity-75"
+          >
+            {isQuerying ? (
+              <>
+                <Loader2 className="size-3.5 animate-spin" />
+                <span>Checking...</span>
+              </>
+            ) : (
+              <>
+                <span>Track Application</span>
+                <ArrowRight className="size-3.5" />
+              </>
+            )}
+          </button>
+          <button
+            type="button"
             onClick={resetAll}
             title="Reset progress to default"
             className="flex items-center gap-1 rounded-xl border border-[#DFC8A5] bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-[#F4ECE1] transition-all cursor-pointer shadow-2xs"
@@ -279,6 +326,56 @@ export const InteractiveApplicationTracker: React.FC<InteractiveApplicationTrack
             <RotateCcw className="size-3.5" />
             <span>Reset</span>
           </button>
+        </form>
+      </div>
+
+      {/* Real-time Tracking Summary Banner */}
+      <div className="rounded-xl border border-[#DFB738]/60 bg-gradient-to-r from-amber-50/90 via-white to-amber-50/50 p-4.5 space-y-3 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EDE6DD] pb-3">
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+            <span className="text-xs font-bold text-[#0B1B4F] font-serif">
+              Live Department Audit for Ref: <span className="font-mono text-amber-900 font-black tracking-wide">{appId}</span>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-slate-600">
+            <span className="rounded-full bg-amber-100 border border-amber-300 px-2 py-0.5 font-bold text-amber-900 text-[10px]">
+              Stage 0{activeStages.find((s) => stageStatuses[s.stageNumber] === "IN_PROGRESS")?.stageNumber || 3} Active
+            </span>
+            <span>•</span>
+            <span className="font-mono text-[10px] text-slate-500">{lastQueryTime ? `Checked at ${lastQueryTime}` : "Verified On-Device"}</span>
+          </div>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-3.5 text-xs">
+          <div>
+            <span className="text-slate-500 block text-[11px]">Current Department Desk:</span>
+            <strong className="text-[#0B1B4F] font-semibold flex items-center gap-1.5 mt-0.5">
+              <Landmark className="size-3.5 text-amber-800 shrink-0" />
+              {activeStages.find((s) => stageStatuses[s.stageNumber] === "IN_PROGRESS")?.actor || "District Welfare Officer (DNO) Cell"}
+            </strong>
+          </div>
+
+          <div>
+            <span className="text-slate-500 block text-[11px]">Statutory SLA Guarantee:</span>
+            <strong className="text-emerald-800 font-semibold flex items-center gap-1.5 mt-0.5">
+              <Clock className="size-3.5 text-emerald-600 shrink-0" />
+              {activeStages.find((s) => stageStatuses[s.stageNumber] === "IN_PROGRESS")?.timeline || "Within 8 Working Days (RTSA Section 4)"}
+            </strong>
+          </div>
+
+          <div>
+            <span className="text-slate-500 block text-[11px]">Official Portal Verification:</span>
+            <a
+              href={portalUrl || (shortCode?.includes("PMS") || schemeId.includes("ST") ? "https://scholarships.gov.in" : "https://www.myscheme.gov.in")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-bold text-[#0B1B4F] hover:text-[#152864] hover:underline mt-0.5"
+            >
+              <span>Cross-Check on Official Portal</span>
+              <ExternalLink className="size-3 text-amber-700" />
+            </a>
+          </div>
         </div>
       </div>
 

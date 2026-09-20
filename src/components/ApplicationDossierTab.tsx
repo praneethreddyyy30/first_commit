@@ -248,6 +248,7 @@ export const ApplicationDossierTab: React.FC<ApplicationDossierTabProps> = ({
         schemeId={topEligible?.id || "NSP_SCHOLARSHIP"}
         schemeTitle={topEligible?.title || "Citizen Scholarship Application"}
         shortCode={topEligible?.shortCode || "NSP"}
+        portalUrl={topEligible?.officialPortalUrl || roadmapData?.portalUrl}
         stages={roadmapData?.stages}
         defaultAppId={`NSP2026ST${Math.floor(10000 + Math.random() * 90000)}`}
       />

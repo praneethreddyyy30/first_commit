@@ -358,6 +358,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
           <DocumentAuditTab
             initialInput={auditInput}
             selectedSchemeId={activeScheme.id}
+            scheme={activeScheme}
             profile={profile}
             onSelectScheme={onSelectScheme}
             onProfileChange={onProfileChange}
@@ -371,6 +372,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
         {activeSubTab === "roadmap" && (
           <PrerequisiteRoadmapTab
             initialSchemeId={activeScheme.id}
+            activeScheme={activeScheme}
             userHeldDocuments={profile.heldDocuments || []}
             userState={profile.state}
             onSelectScheme={onSelectScheme}

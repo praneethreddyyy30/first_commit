@@ -2384,18 +2384,54 @@ export const SCHEME_ROADMAPS: Record<string, SchemeRoadmapBase> = {
 
 // 2. HELPER: Get Dedicated Roadmap for Any Scheme
 export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRoadmap {
-  const inputId = typeof schemeOrId === "string" ? schemeOrId : schemeOrId.id;
-  const scheme = SCHEMES_DATABASE.find(
-    (s) =>
-      s.id === inputId ||
-      s.shortCode === inputId ||
-      s.id.toLowerCase() === inputId.toLowerCase() ||
-      s.shortCode.toLowerCase() === inputId.toLowerCase()
-  );
+  const isObject = typeof schemeOrId !== "string" && schemeOrId !== null && typeof schemeOrId === "object";
+  const inputId = typeof schemeOrId === "string" ? schemeOrId : schemeOrId?.id || "";
+
+  // 1. Resolve full SchemeOrService object
+  let scheme: SchemeOrService | undefined = isObject ? (schemeOrId as SchemeOrService) : undefined;
+  if (!scheme && inputId) {
+    scheme = SCHEMES_DATABASE.find(
+      (s) =>
+        s.id === inputId ||
+        s.shortCode === inputId ||
+        s.id.toLowerCase() === inputId.toLowerCase() ||
+        s.shortCode.toLowerCase() === inputId.toLowerCase() ||
+        s.title.toLowerCase() === inputId.toLowerCase()
+    );
+  }
   const schemeId = scheme ? scheme.id : inputId;
 
-  // If already explicitly configured in SCHEME_ROADMAPS
-  const existing = SCHEME_ROADMAPS[schemeId] || SCHEME_ROADMAPS[inputId];
+  // 2. If already explicitly configured in SCHEME_ROADMAPS (with fuzzy title/keyword fallbacks)
+  let existing: SchemeRoadmapBase | undefined = SCHEME_ROADMAPS[schemeId] || SCHEME_ROADMAPS[inputId];
+
+  if (!existing && (scheme || inputId)) {
+    const searchTarget = `${scheme?.id || ""} ${scheme?.shortCode || ""} ${scheme?.title || ""} ${inputId}`.toLowerCase();
+
+    for (const [key, roadmap] of Object.entries(SCHEME_ROADMAPS)) {
+      const rKey = key.toLowerCase();
+      const rTitle = (roadmap.schemeTitle || "").toLowerCase();
+      const rCode = (roadmap.shortCode || "").toLowerCase();
+
+      if (
+        rKey === inputId.toLowerCase() ||
+        rCode === inputId.toLowerCase() ||
+        (searchTarget.includes("post-matric") && searchTarget.includes("st") && rKey === "postmatric_st") ||
+        (searchTarget.includes("post matric") && searchTarget.includes("st") && rKey === "postmatric_st") ||
+        (searchTarget.includes("pragati") && rKey === "aicte_pragati") ||
+        (searchTarget.includes("ishaan") && rKey === "ishaan_uday_ner") ||
+        (searchTarget.includes("pudhumai") && rKey === "tn_pudhumai_penn") ||
+        (searchTarget.includes("jagananna") && searchTarget.includes("vidya") && rKey === "ap_jagananna_vidya_deevena") ||
+        (searchTarget.includes("ayushman") && rKey === "ayushman_pmjay") ||
+        (searchTarget.includes("forest") && searchTarget.includes("rights") && rKey === "fra_rofr_land_patta") ||
+        (searchTarget.includes("rofr") && rKey === "fra_rofr_land_patta") ||
+        (searchTarget.includes("vidyalaxmi") && rKey === "pm_vidyalaxmi_loan")
+      ) {
+        existing = roadmap;
+        break;
+      }
+    }
+  }
+
   if (existing) {
     // Derive mode if not explicitly set
     const processMode: SchemeProcessMode = existing.processMode || (
@@ -2830,6 +2866,184 @@ export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRo
     ];
   }
 
+  // Dynamically derive statutory government proofs from scheme metadata and mandatory documents
+  const dynamicTier2Certificates: RoadmapStatutoryCertificate[] = [];
+  const addedCertIds = new Set<string>();
+
+  const allDocTexts = [
+    ...(scheme?.mandatoryDocuments || []),
+    ...(scheme?.prerequisites || [])
+  ];
+
+  const docStr = allDocTexts.join(" ").toLowerCase();
+  const catList = (scheme?.targetCategories || []).map((c) => String(c).toUpperCase());
+  const incomeLimit = scheme?.maxIncome ?? 800000;
+  const lowerTitle = title.toLowerCase();
+
+  // 1. Caste / Tribe / Community Proof
+  const needsCaste =
+    catList.includes("ST") ||
+    catList.includes("SC") ||
+    catList.includes("OBC") ||
+    docStr.includes("caste") ||
+    docStr.includes("tribe") ||
+    docStr.includes("community") ||
+    lowerTitle.includes("tribe") ||
+    lowerTitle.includes("caste") ||
+    lowerTitle.includes("st student") ||
+    lowerTitle.includes("sc student");
+
+  if (needsCaste) {
+    const isST = catList.includes("ST") || docStr.includes("st caste") || docStr.includes("scheduled tribe") || lowerTitle.includes("scheduled tribe") || lowerTitle.includes("st student");
+    const isSC = catList.includes("SC") || docStr.includes("sc caste") || docStr.includes("scheduled caste") || lowerTitle.includes("sc student");
+    const isOBC = catList.includes("OBC") || docStr.includes("obc");
+
+    const certName = isST
+      ? "Scheduled Tribe (ST) Certificate & Validity"
+      : isSC
+      ? "Scheduled Caste (SC) Certificate & Verification"
+      : isOBC
+      ? "OBC Non-Creamy Layer (NCL) Certificate"
+      : "Statutory Community / Caste Certificate";
+
+    dynamicTier2Certificates.push({
+      certificateId: "Caste_Certificate",
+      name: certName,
+      authority: "Sub-Divisional Officer (SDO) / Tehsildar / District Magistrate",
+      turnaround: "15–30 Days",
+      statutoryCost: "₹25–₹30",
+      validity: "Permanent / Lifetime Validity",
+      keyCondition: isST
+        ? "Must explicitly state recognized Scheduled Tribe under Presidential Order"
+        : "Mandatory statutory verification of community category",
+    });
+    addedCertIds.add("Caste_Certificate");
+  }
+
+  // 2. Statutory Family Income Certificate
+  const needsIncome =
+    incomeLimit < 1000000 ||
+    docStr.includes("income") ||
+    docStr.includes("salary") ||
+    docStr.includes("affluence");
+
+  if (needsIncome && !addedCertIds.has("Income_Certificate")) {
+    const formattedLimit = incomeLimit > 0 && incomeLimit < 9999999 ? `₹${incomeLimit.toLocaleString("en-IN")}` : "₹2,50,000";
+    dynamicTier2Certificates.push({
+      certificateId: "Income_Certificate",
+      name: `Statutory Family Income Certificate (< ${formattedLimit})`,
+      authority: "Tehsildar / Competent Revenue Authority",
+      turnaround: "15 Days",
+      statutoryCost: "₹25",
+      validity: "Issued in Current FY 2026-27 (Valid for 1 Year)",
+      keyCondition: `Total annual family income from all sources must not exceed ${formattedLimit}`,
+    });
+    addedCertIds.add("Income_Certificate");
+  }
+
+  // 3. Land Record / RoR / Patta
+  const needsLand =
+    docStr.includes("land") ||
+    docStr.includes("patta") ||
+    docStr.includes("ror") ||
+    docStr.includes("1b") ||
+    docStr.includes("khatiyan") ||
+    isForestOrLandRights ||
+    lowerTitle.includes("kisan") ||
+    lowerTitle.includes("land") ||
+    lowerTitle.includes("bhoomi");
+
+  if (needsLand && !addedCertIds.has("Land_Record")) {
+    dynamicTier2Certificates.push({
+      certificateId: "Land_Record",
+      name: "Land Revenue Record (RoR / Registered Patta / 1-B Namuna)",
+      authority: "Tahsildar / Mandal Revenue Inspector (RI)",
+      turnaround: "15 Days",
+      statutoryCost: "₹25",
+      validity: "Permanent / Updated Land Revenue Record",
+      keyCondition: "Certified revenue record verifying land holding or ancestral agricultural plot",
+    });
+    addedCertIds.add("Land_Record");
+  }
+
+  // 4. Domicile / Nativity Proof
+  const needsDomicile =
+    docStr.includes("domicile") ||
+    docStr.includes("nativity") ||
+    docStr.includes("residence") ||
+    docStr.includes("prc") ||
+    scheme?.level === "State";
+
+  if (needsDomicile && !addedCertIds.has("Domicile_Certificate")) {
+    dynamicTier2Certificates.push({
+      certificateId: "Domicile_Certificate",
+      name: "State Domicile / Nativity / Residence Certificate (PRC)",
+      authority: "Tahsildar / Sub-Divisional Magistrate",
+      turnaround: "15 Days",
+      statutoryCost: "₹25",
+      validity: "Permanent / Lifetime",
+      keyCondition: "Statutory proof confirming bonafide permanent residence in the eligible state",
+    });
+    addedCertIds.add("Domicile_Certificate");
+  }
+
+  // 5. Food Security / BPL Ration Card
+  const needsRation =
+    docStr.includes("ration") ||
+    docStr.includes("bpl") ||
+    docStr.includes("rice card") ||
+    docStr.includes("nfsa");
+
+  if (needsRation && !addedCertIds.has("Ration_Card")) {
+    dynamicTier2Certificates.push({
+      certificateId: "Ration_Card",
+      name: "Food Security BPL Ration Card / Family Rice Card",
+      authority: "Civil Supplies & Consumer Protection Department",
+      turnaround: "15 Days",
+      statutoryCost: "₹20",
+      validity: "Permanent Active Family Card",
+      keyCondition: "Valid ration card establishing family economic status and household members",
+    });
+    addedCertIds.add("Ration_Card");
+  }
+
+  // 6. Disability Certificate
+  const needsDisability =
+    docStr.includes("disability") ||
+    docStr.includes("udid") ||
+    docStr.includes("pwd") ||
+    scheme?.disabilityRequirement;
+
+  if (needsDisability && !addedCertIds.has("UDID_Certificate")) {
+    dynamicTier2Certificates.push({
+      certificateId: "UDID_Certificate",
+      name: "Unique Disability ID (UDID) / District Medical Board Certificate",
+      authority: "District Medical Board / Civil Surgeon",
+      turnaround: "30 Days",
+      statutoryCost: "₹0.00",
+      validity: "Permanent or as certified by Medical Board",
+      keyCondition: "Statutory certification of minimum 40% benchmark disability",
+    });
+    addedCertIds.add("UDID_Certificate");
+  }
+
+  // 7. Explicit Prerequisites defined on Scheme
+  for (const prereqId of scheme?.prerequisites || []) {
+    if (!addedCertIds.has(prereqId)) {
+      const prereq = SCHEMES_DATABASE.find((s) => s.id === prereqId);
+      dynamicTier2Certificates.push({
+        certificateId: prereqId,
+        name: prereq?.title || prereqId.replace(/_/g, " "),
+        authority: "Tehsildar / Sub-Divisional Officer",
+        turnaround: prereq?.offlineSubmission?.statutoryDaysLimit ? `${prereq.offlineSubmission.statutoryDaysLimit} Days` : "15 Days",
+        statutoryCost: prereq?.offlineSubmission?.officialStatutoryFee || "₹25",
+        validity: prereqId.includes("Income") ? "Current FY (1 Year)" : "Permanent / Lifetime",
+        keyCondition: `Mandatory prerequisite document required for ${scheme?.shortCode || "this scheme"}`,
+      });
+      addedCertIds.add(prereqId);
+    }
+  }
+
   return {
     schemeId,
     schemeTitle: title,
@@ -2872,18 +3086,7 @@ export function getSchemeRoadmap(schemeOrId: string | SchemeOrService): SchemeRo
         mandatory: true,
       },
     ],
-    tier2StatutoryCertificates: (scheme?.prerequisites || []).map((prereqId) => {
-      const prereq = SCHEMES_DATABASE.find((s) => s.id === prereqId);
-      return {
-        certificateId: prereqId,
-        name: prereq?.title || prereqId.replace("_", " "),
-        authority: "Tehsildar / Sub-Divisional Officer",
-        turnaround: prereq?.offlineSubmission.statutoryDaysLimit ? `${prereq.offlineSubmission.statutoryDaysLimit} Days` : "15 Days",
-        statutoryCost: prereq?.offlineSubmission.officialStatutoryFee || "₹25",
-        validity: prereqId.includes("Income") ? "Current FY (1 Year)" : "Permanent / Lifetime",
-        keyCondition: `Mandatory prerequisite to unlock ${scheme?.shortCode || "this scheme"}`,
-      };
-    }),
+    tier2StatutoryCertificates: dynamicTier2Certificates,
     tier3Institutional: [
       {
         name: isForestOrLandRights
