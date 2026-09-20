@@ -71,7 +71,7 @@ async function callGroqChat(
           model,
           messages,
           temperature: 0.6,
-          max_tokens: 1200,
+          max_tokens: 2500,
         }),
       });
 
@@ -118,7 +118,7 @@ async function callGeminiChat(
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: {
           temperature: 0.6,
-          maxOutputTokens: 1200,
+          maxOutputTokens: 2500,
         },
       }),
     }
@@ -219,7 +219,11 @@ Rules:
 - When the user asks "what schemes are non-eligible" or "why am I rejected", explain the exact Cedar policy denial reasons above.
 - When the user asks about requirements or documents for a scheme, list the specific mandatory documents and prerequisites.
 - When the user asks "how can I do it" or "how to apply", provide the clear 5-step roadmap.
-- Emphasize the difference between Aadhaar Linking and NPCI Aadhaar DBT Seeding.
+- Formatting & Readability:
+  * Present document checklists and guidance in clean, structured sections with priority indicators (🔴 Action Required, 🟡 Documents to Procure, 🟢 Ready to Use).
+  * Avoid giant, sprawling multi-column markdown tables that are easily truncated or hard to read on mobile screens; prefer categorized cards or clean bulleted sections.
+  * When explaining Aadhaar Linking vs NPCI Aadhaar DBT Seeding, provide a crisp, complete explanation of the distinction (linking allows authentication; NPCI DBT seeding binds the account on the central mapper to receive government direct benefit transfers).
+  * Always ensure explanations are complete and finish with a simple next-step action plan.
 - Remind users of statutory fees (₹0 for scholarships, ₹25-30 for certificates at CSCs).
 - Answer in ${language === "hi" ? "simple spoken Hindi (Hinglish/Devanagari)" : "clear, encouraging English"}.
 Knowledge base context:
@@ -268,7 +272,7 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
             { role: "user", content: [{ text: userQuery }] }
           ],
           inferenceConfig: {
-            maxTokens: 1000,
+            maxTokens: 2500,
             temperature: 0.7
           }
         });
@@ -279,7 +283,7 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
         if (modelId.includes("anthropic")) {
           const payload = {
             anthropic_version: "bedrock-2023-05-31",
-            max_tokens: 1000,
+            max_tokens: 2500,
             system: systemPrompt,
             messages: [
               ...history.filter(m => m.role !== "system").map(m => ({ role: m.role, content: m.content })),
