@@ -266,6 +266,26 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
         : `${Math.round(file.size / 1024)} KB`;
 
+    // Client-side guard for HEIC / HEIF camera photos
+    if (file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif")) {
+      setSchemeUploadedDocs((prev) => ({
+        ...prev,
+        [docName]: {
+          fileName: file.name,
+          size: sizeStr,
+          type: file.type || "image/heic",
+          status: "REJECTED",
+          isValidDocument: false,
+          confidenceScore: 0,
+          validationWarnings: [
+            `❌ Unsupported Format (.HEIC): Live camera snapshots and wallpapers cannot be verified as official statutory documents. Please upload an official scanned document in standard PDF, JPG, or PNG format.`,
+          ],
+          isExtracting: false,
+        },
+      }));
+      return;
+    }
+
     const expected = detectExpectedDocType(docName);
 
     // 1. Set extracting state
@@ -311,7 +331,10 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         const data = await response.json();
         if (data.success && data.result) {
           const res = data.result;
-          const isDocValid = res.isValidDocument !== false;
+          const isDocValid = res.isValidDocument === true;
+          const confidence = res.confidenceScore != null
+            ? (res.confidenceScore <= 1 ? Math.round(res.confidenceScore * 100) : Math.round(res.confidenceScore))
+            : 0;
 
           setSchemeUploadedDocs((prev) => ({
             ...prev,
@@ -321,12 +344,14 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               type: file.type,
               status: isDocValid ? "VERIFIED" : "REJECTED",
               isValidDocument: isDocValid,
-              extractedName: res.extractedName,
-              extractedDob: res.extractedDob,
-              extractedId: res.extractedIdNumber,
-              confidenceScore: res.confidenceScore,
-              issuingAuthority: res.issuingAuthority,
-              validationWarnings: res.validationWarnings,
+              extractedName: isDocValid ? (res.extractedName || undefined) : undefined,
+              extractedDob: isDocValid ? (res.extractedDob || undefined) : undefined,
+              extractedId: isDocValid ? (res.extractedIdNumber || undefined) : undefined,
+              confidenceScore: isDocValid ? confidence : 0,
+              issuingAuthority: isDocValid ? (res.issuingAuthority || undefined) : undefined,
+              validationWarnings: res.validationWarnings && res.validationWarnings.length > 0
+                ? res.validationWarnings
+                : (!isDocValid ? ["Document validation failed. Statutory markers not recognized."] : []),
               isExtracting: false,
             },
           }));
@@ -992,7 +1017,7 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
                     <span>{isUploaded ? "Replace File" : "Upload Document (PDF / JPG)"}</span>
                     <input
                       type="file"
-                      accept="image/*,application/pdf"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
                       className="hidden"
                       onChange={(e) => handleSchemeDocUpload(docName, e)}
                     />
