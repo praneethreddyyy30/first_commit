@@ -130,17 +130,19 @@ h1, h2, h3, .font-serif {
 @keyframes tabFadeSlide {
   0% {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(16px);
+    filter: blur(4px);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
+    filter: blur(0px);
   }
 }
 
 .animate-tab-enter {
-  animation: tabFadeSlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform;
+  animation: tabFadeSlide 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, transform, filter;
 }
 
 @keyframes fadeIn {
@@ -153,14 +155,7 @@ h1, h2, h3, .font-serif {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-tab-enter,
-  .animate-fade-in {
-    animation: none !important;
-    transform: none !important;
-  }
-}
 

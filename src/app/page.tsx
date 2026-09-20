@@ -273,9 +273,9 @@ export default function Home() {
             {/* Step 1: Citizen Master Profile */}
             <button
               onClick={() => setActiveTab("profile")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "profile"
-                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
                   : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
@@ -289,9 +289,9 @@ export default function Home() {
             {/* Step 2: Schemes & Certificates */}
             <button
               onClick={() => setActiveTab("schemes")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "schemes"
-                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
                   : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
@@ -305,9 +305,9 @@ export default function Home() {
             {/* Step 3: Dedicated Scheme Workspace */}
             <button
               onClick={() => setActiveTab("workspace")}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold transition-all duration-200 cursor-pointer active:scale-95 ${
                 activeTab === "workspace"
-                  ? "bg-[#152864] text-[#F5E29F] shadow-sm ring-1 ring-[#DFB738]/50 font-bold"
+                  ? "bg-[#152864] text-[#F5E29F] shadow-md ring-2 ring-[#DFB738]/70 font-bold scale-[1.02]"
                   : "text-slate-300 hover:bg-[#152864]/50 hover:text-white"
               }`}
             >
