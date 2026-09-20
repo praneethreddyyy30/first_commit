@@ -121,6 +121,18 @@ export function evaluateCedarPolicies(
     const failedClauses: string[] = [];
     let fitScore = 100;
 
+    // Defensive normalization for live ingested schemes
+    const targetCategories = Array.isArray(scheme.targetCategories) && scheme.targetCategories.length > 0
+      ? scheme.targetCategories
+      : ["All"];
+    const educationStages = Array.isArray(scheme.educationStages) && scheme.educationStages.length > 0
+      ? scheme.educationStages
+      : ["All"];
+    const courseTypesAllowed = Array.isArray(scheme.courseTypesAllowed) && scheme.courseTypesAllowed.length > 0
+      ? scheme.courseTypesAllowed
+      : ["Regular Full-Time"];
+    const maxIncome = typeof scheme.maxIncome === "number" ? scheme.maxIncome : Infinity;
+
     // 1. Social Category Matching
     const isTN = profile.state === "Tamil Nadu";
     const isAP = profile.state === "Andhra Pradesh";
@@ -128,70 +140,70 @@ export function evaluateCedarPolicies(
     const apComm = profile.apCommunity || "BC-A";
 
     const isTNCommunityMatch = isTN && (
-      scheme.targetCategories.includes("All") ||
-      (community === "ST" && scheme.targetCategories.includes("ST")) ||
-      (["SC", "SCA"].includes(community) && scheme.targetCategories.includes("SC")) ||
+      targetCategories.includes("All") ||
+      (community === "ST" && targetCategories.includes("ST")) ||
+      (["SC", "SCA"].includes(community) && targetCategories.includes("SC")) ||
       (["BC", "BCM", "MBC", "DNC"].includes(community) && (
-        scheme.targetCategories.includes("OBC") ||
-        scheme.targetCategories.includes("BC") ||
-        scheme.targetCategories.includes("MBC") ||
-        scheme.targetCategories.includes("DNC")
+        targetCategories.includes("OBC") ||
+        targetCategories.includes("BC") ||
+        targetCategories.includes("MBC") ||
+        targetCategories.includes("DNC")
       ))
     );
 
     const isAPCommunityMatch = isAP && (
-      scheme.targetCategories.includes("All") ||
-      (apComm === "ST" && scheme.targetCategories.includes("ST")) ||
-      (apComm === "SC" && scheme.targetCategories.includes("SC")) ||
+      targetCategories.includes("All") ||
+      (apComm === "ST" && targetCategories.includes("ST")) ||
+      (apComm === "SC" && targetCategories.includes("SC")) ||
       (["BC-A", "BC-B", "BC-C", "BC-D", "BC-E"].includes(apComm) && (
-        scheme.targetCategories.includes("OBC") ||
-        scheme.targetCategories.includes("BC")
+        targetCategories.includes("OBC") ||
+        targetCategories.includes("BC")
       )) ||
       (["Kapu", "EBC"].includes(apComm) && (
-        scheme.targetCategories.includes("Kapu") ||
-        scheme.targetCategories.includes("EBC") ||
-        scheme.targetCategories.includes("OBC")
+        targetCategories.includes("Kapu") ||
+        targetCategories.includes("EBC") ||
+        targetCategories.includes("OBC")
       ))
     );
 
     if (
-      scheme.targetCategories.includes("All") ||
-      scheme.targetCategories.includes(profile.category) ||
+      targetCategories.includes("All") ||
+      targetCategories.includes(profile.category) ||
       isTNCommunityMatch ||
       isAPCommunityMatch
     ) {
       passedClauses.push(
-        `Category match: ${isTN ? `${community} (TN)` : isAP ? `${apComm} (AP)` : profile.category} in [${scheme.targetCategories.join(", ")}]`
+        `Category match: ${isTN ? `${community} (TN)` : isAP ? `${apComm} (AP)` : profile.category} in [${targetCategories.join(", ")}]`
       );
     } else {
       failedClauses.push(
-        `Category mismatch: Candidate is ${isTN ? community : isAP ? apComm : profile.category}, but scheme requires [${scheme.targetCategories.join(", ")}]`
+        `Category mismatch: Candidate is ${isTN ? community : isAP ? apComm : profile.category}, but scheme requires [${targetCategories.join(", ")}]`
       );
       fitScore -= 45;
     }
 
     // 2. Statutory Family Income Ceiling
-    if (profile.annualFamilyIncome <= scheme.maxIncome) {
-      const margin = scheme.maxIncome - profile.annualFamilyIncome;
-      passedClauses.push(`Income eligibility: ₹${profile.annualFamilyIncome.toLocaleString('en-IN')} <= Ceiling ₹${scheme.maxIncome.toLocaleString('en-IN')} (Eligible by ₹${margin.toLocaleString('en-IN')})`);
+    if (profile.annualFamilyIncome <= maxIncome) {
+      const margin = maxIncome === Infinity ? "No Limit" : `₹${(maxIncome - profile.annualFamilyIncome).toLocaleString('en-IN')}`;
+      passedClauses.push(`Income eligibility: ₹${profile.annualFamilyIncome.toLocaleString('en-IN')} <= Ceiling ${maxIncome === Infinity ? "None" : `₹${maxIncome.toLocaleString('en-IN')}`} (Eligible: ${margin})`);
     } else {
-      failedClauses.push(`Income ceiling exceeded: ₹${profile.annualFamilyIncome.toLocaleString('en-IN')} > Max allowed ₹${scheme.maxIncome.toLocaleString('en-IN')}`);
+      failedClauses.push(`Income ceiling exceeded: ₹${profile.annualFamilyIncome.toLocaleString('en-IN')} > Max allowed ₹${maxIncome.toLocaleString('en-IN')}`);
       fitScore -= 50;
     }
 
     // 3. Education Stage
-    if (scheme.educationStages.includes("All") || scheme.educationStages.includes(profile.educationLevel)) {
+    if (educationStages.includes("All") || educationStages.includes(profile.educationLevel)) {
       passedClauses.push(`Education level match: ${profile.educationLevel}`);
     } else {
-      failedClauses.push(`Education stage mismatch: Candidate is in ${profile.educationLevel}, scheme is for [${scheme.educationStages.join(", ")}]`);
+      failedClauses.push(`Education stage mismatch: Candidate is in ${profile.educationLevel}, scheme is for [${educationStages.join(", ")}]`);
       fitScore -= 35;
     }
 
     // 4. Course Type (Regular Full-Time vs Distance/Vocational)
-    if (scheme.courseTypesAllowed.includes(profile.courseType)) {
+    if (courseTypesAllowed.includes(profile.courseType)) {
       passedClauses.push(`Course mode: ${profile.courseType} (Eligible)`);
     } else {
-      failedClauses.push(`Course mode ineligible: Scheme strictly disallows ${profile.courseType} (Requires: ${scheme.courseTypesAllowed.join(", ")})`);
+      failedClauses.push(`Course mode ineligible: Scheme strictly disallows ${profile.courseType} (Requires: ${courseTypesAllowed.join(", ")})`);
       fitScore -= 40;
     }
 
@@ -347,7 +359,8 @@ export function evaluateCedarPolicies(
     // 20. Prerequisite Document Check (Held vs Missing)
     const heldPrereqs: { id: string; name: string }[] = [];
     const missingPrereqs: SchemeOrService[] = [];
-    for (const prereqId of scheme.prerequisites) {
+    const prerequisitesList = Array.isArray(scheme.prerequisites) ? scheme.prerequisites : [];
+    for (const prereqId of prerequisitesList) {
       const prereqScheme = SCHEMES_DATABASE.find(s => s.id === prereqId);
       const docTitle = prereqScheme ? prereqScheme.title : prereqId.replace(/_/g, " ");
       if (heldDocs.has(prereqId)) {
@@ -359,13 +372,13 @@ export function evaluateCedarPolicies(
 
     // User-friendly matched reasons
     const matchedReasons: string[] = [];
-    if (profile.annualFamilyIncome <= scheme.maxIncome) {
-      matchedReasons.push(`Annual family income (₹${profile.annualFamilyIncome.toLocaleString('en-IN')}) is within statutory limit of ₹${scheme.maxIncome.toLocaleString('en-IN')}`);
+    if (profile.annualFamilyIncome <= maxIncome) {
+      matchedReasons.push(`Annual family income (₹${profile.annualFamilyIncome.toLocaleString('en-IN')}) is within statutory limit of ${maxIncome === Infinity ? "None" : `₹${maxIncome.toLocaleString('en-IN')}`}`);
     }
-    if (scheme.educationStages.includes("All") || scheme.educationStages.includes(profile.educationLevel)) {
+    if (educationStages.includes("All") || educationStages.includes(profile.educationLevel)) {
       matchedReasons.push(`Currently enrolled in qualifying education stage: ${profile.educationLevel}`);
     }
-    if (scheme.courseTypesAllowed.includes(profile.courseType)) {
+    if (courseTypesAllowed.includes(profile.courseType)) {
       matchedReasons.push(`Course mode is valid: ${profile.courseType}`);
     }
     if (!scheme.managementQuotaAllowed && profile.admissionQuota !== "Management/Direct") {
