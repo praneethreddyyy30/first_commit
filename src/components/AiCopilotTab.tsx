@@ -224,11 +224,11 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
   const blocks = parseMarkdownBlocks(content);
 
   return (
-    <div className="space-y-2 text-xs sm:text-sm leading-relaxed">
+    <div className={`space-y-2 text-xs sm:text-sm leading-relaxed ${isUser ? "text-white" : "text-slate-800"}`}>
       {blocks.map((block, idx) => {
         switch (block.type) {
           case "hr":
-            return <hr key={idx} className="my-2 border-t border-[#EDE6DD]" />;
+            return <hr key={idx} className={`my-2 border-t ${isUser ? "border-white/20" : "border-[#EDE6DD]"}`} />;
 
           case "heading": {
             const isTopLevel = block.level <= 2;
@@ -236,7 +236,9 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
               <div
                 key={idx}
                 className={
-                  isTopLevel
+                  isUser
+                    ? "font-bold text-xs sm:text-sm text-[#F5E29F] mt-1.5 mb-0.5"
+                    : isTopLevel
                     ? "font-serif font-black text-sm sm:text-base text-[#0B1B4F] mt-2 mb-1"
                     : "font-bold text-xs sm:text-sm text-[#0B1B4F] mt-1.5 mb-0.5"
                 }
@@ -250,7 +252,11 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
             return (
               <div
                 key={idx}
-                className="my-2 rounded-r-lg border-l-4 border-[#DFB738] bg-[#FAF7F2] py-2 px-3 text-xs italic text-slate-700 shadow-xs"
+                className={
+                  isUser
+                    ? "my-2 rounded-r-lg border-l-4 border-[#DFB738] bg-white/10 py-2 px-3 text-xs italic text-white shadow-xs"
+                    : "my-2 rounded-r-lg border-l-4 border-[#DFB738] bg-[#FAF7F2] py-2 px-3 text-xs italic text-slate-700 shadow-xs"
+                }
               >
                 {renderInlineMarkdown(block.text, isUser)}
               </div>
@@ -260,15 +266,23 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
             return (
               <div
                 key={idx}
-                className="my-2 overflow-x-auto rounded-xl border border-[#EDE6DD] bg-white shadow-xs max-w-full"
+                className={`my-2 overflow-x-auto rounded-xl border max-w-full shadow-xs ${
+                  isUser ? "border-white/20 bg-[#152864]" : "border-[#EDE6DD] bg-white"
+                }`}
               >
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-[#EDE6DD] bg-[#FAF7F2]">
+                    <tr
+                      className={
+                        isUser ? "border-b border-white/20 bg-[#071233]" : "border-b border-[#EDE6DD] bg-[#FAF7F2]"
+                      }
+                    >
                       {block.headers.map((h, hIdx) => (
                         <th
                           key={hIdx}
-                          className="py-2 px-3 font-bold text-[#0B1B4F] whitespace-nowrap"
+                          className={`py-2 px-3 font-bold whitespace-nowrap ${
+                            isUser ? "text-[#F5E29F]" : "text-[#0B1B4F]"
+                          }`}
                         >
                           {renderInlineMarkdown(h, isUser)}
                         </th>
@@ -279,10 +293,17 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
                     {block.rows.map((row, rIdx) => (
                       <tr
                         key={rIdx}
-                        className="border-b border-[#F5EFE6] last:border-0 hover:bg-[#FAF7F2]/60 transition-colors"
+                        className={
+                          isUser
+                            ? "border-b border-white/10 last:border-0 hover:bg-white/5 transition-colors"
+                            : "border-b border-[#F5EFE6] last:border-0 hover:bg-[#FAF7F2]/60 transition-colors"
+                        }
                       >
                         {row.map((cell, cIdx) => (
-                          <td key={cIdx} className="py-2 px-3 text-slate-700 align-top">
+                          <td
+                            key={cIdx}
+                            className={`py-2 px-3 align-top ${isUser ? "text-white" : "text-slate-700"}`}
+                          >
                             {renderInlineMarkdown(cell, isUser)}
                           </td>
                         ))}
@@ -296,7 +317,10 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
           case "list":
             if (block.ordered) {
               return (
-                <ol key={idx} className="my-1.5 space-y-1 pl-5 list-decimal text-slate-800">
+                <ol
+                  key={idx}
+                  className={`my-1.5 space-y-1 pl-5 list-decimal ${isUser ? "text-white" : "text-slate-800"}`}
+                >
                   {block.items.map((item, itemIdx) => (
                     <li key={itemIdx} className="leading-relaxed">
                       {renderInlineMarkdown(item, isUser)}
@@ -306,7 +330,12 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
               );
             }
             return (
-              <ul key={idx} className="my-1.5 space-y-1 pl-4 list-disc text-slate-800 marker:text-[#854D0E]">
+              <ul
+                key={idx}
+                className={`my-1.5 space-y-1 pl-4 list-disc ${
+                  isUser ? "text-white marker:text-[#F5E29F]" : "text-slate-800 marker:text-[#854D0E]"
+                }`}
+              >
                 {block.items.map((item, itemIdx) => (
                   <li key={itemIdx} className="leading-relaxed">
                     {renderInlineMarkdown(item, isUser)}
@@ -318,7 +347,10 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
           case "paragraph":
           default:
             return (
-              <div key={idx} className="leading-relaxed text-slate-800">
+              <div
+                key={idx}
+                className={`leading-relaxed ${isUser ? "text-white font-medium" : "text-slate-800"}`}
+              >
                 {renderInlineMarkdown(block.text, isUser)}
               </div>
             );
