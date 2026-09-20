@@ -16,7 +16,9 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle2,
-  Languages
+  Languages,
+  ExternalLink,
+  Zap,
 } from "lucide-react";
 import type { ChatMessage } from "@/lib/bedrock/bedrockClient";
 import { UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
@@ -240,8 +242,10 @@ Ask me anything! Here are popular queries:
     }
   }, [targetSchemeId, profile, evaluationResults, auditResult, isCurrentSchemeEligible]);
 
-  // Optional AWS Bedrock custom credentials state
+  // Multi-Provider AI Credentials State (Groq, Gemini, AWS Bedrock)
   const [showAwsSettings, setShowAwsSettings] = useState<boolean>(false);
+  const [customGroqKey, setCustomGroqKey] = useState<string>("");
+  const [customGeminiKey, setCustomGeminiKey] = useState<string>("");
   const [customAccessKey, setCustomAccessKey] = useState<string>("");
   const [customSecretKey, setCustomSecretKey] = useState<string>("");
   const [customRegion, setCustomRegion] = useState<string>("us-east-1");
@@ -251,18 +255,39 @@ Ask me anything! Here are popular queries:
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef<boolean>(false);
 
-  // Restore saved AWS credentials if previously entered
+  // Restore saved credentials if previously entered
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
+        const savedGroq = localStorage.getItem("jansetu_groq_key");
+        const savedGemini = localStorage.getItem("jansetu_gemini_key");
         const savedKey = localStorage.getItem("jansetu_aws_access_key");
         const savedSecret = localStorage.getItem("jansetu_aws_secret_key");
         const savedReg = localStorage.getItem("jansetu_aws_region");
+
+        if (savedGroq) setCustomGroqKey(savedGroq);
+        if (savedGemini) setCustomGeminiKey(savedGemini);
         if (savedKey && savedSecret) {
           setCustomAccessKey(savedKey);
           setCustomSecretKey(savedSecret);
           if (savedReg) setCustomRegion(savedReg);
+        }
+
+        const hasAnyKey = Boolean(
+          (savedGroq && savedGroq.trim().length > 10) ||
+          (savedGemini && savedGemini.trim().length > 10) ||
+          (savedKey && savedSecret)
+        );
+
+        if (hasAnyKey) {
           setCredentialsConfigured(true);
+          if (savedGroq && savedGroq.trim().length > 10) {
+            setModelSource("⚡ Groq Llama 3.3 70B (Live)");
+          } else if (savedGemini && savedGemini.trim().length > 10) {
+            setModelSource("🌟 Gemini 2.0 Flash (Live)");
+          } else if (savedKey && savedSecret) {
+            setModelSource("AWS Bedrock (Live Credentials)");
+          }
         }
       } catch (e) {
         // localStorage unavailable
@@ -271,20 +296,55 @@ Ask me anything! Here are popular queries:
   }, []);
 
   const handleSaveCredentials = () => {
+    let anyConfigured = false;
+
+    if (customGroqKey.trim()) {
+      localStorage.setItem("jansetu_groq_key", customGroqKey.trim());
+      anyConfigured = true;
+    } else {
+      localStorage.removeItem("jansetu_groq_key");
+    }
+
+    if (customGeminiKey.trim()) {
+      localStorage.setItem("jansetu_gemini_key", customGeminiKey.trim());
+      anyConfigured = true;
+    } else {
+      localStorage.removeItem("jansetu_gemini_key");
+    }
+
     if (customAccessKey.trim() && customSecretKey.trim()) {
       localStorage.setItem("jansetu_aws_access_key", customAccessKey.trim());
       localStorage.setItem("jansetu_aws_secret_key", customSecretKey.trim());
       localStorage.setItem("jansetu_aws_region", customRegion.trim() || "us-east-1");
-      setCredentialsConfigured(true);
-      setShowAwsSettings(false);
+      anyConfigured = true;
+    } else {
+      localStorage.removeItem("jansetu_aws_access_key");
+      localStorage.removeItem("jansetu_aws_secret_key");
+      localStorage.removeItem("jansetu_aws_region");
+    }
+
+    setCredentialsConfigured(anyConfigured);
+    setShowAwsSettings(false);
+
+    if (customGroqKey.trim()) {
+      setModelSource("⚡ Groq Llama 3.3 70B (Live)");
+    } else if (customGeminiKey.trim()) {
+      setModelSource("🌟 Gemini 2.0 Flash (Live)");
+    } else if (customAccessKey.trim() && customSecretKey.trim()) {
       setModelSource("AWS Bedrock (Live Credentials)");
+    } else {
+      setModelSource("JanSetu-Civic-RAG (Zero-Fail / No Key Needed)");
     }
   };
 
   const handleClearCredentials = () => {
+    localStorage.removeItem("jansetu_groq_key");
+    localStorage.removeItem("jansetu_gemini_key");
     localStorage.removeItem("jansetu_aws_access_key");
     localStorage.removeItem("jansetu_aws_secret_key");
     localStorage.removeItem("jansetu_aws_region");
+    setCustomGroqKey("");
+    setCustomGeminiKey("");
     setCustomAccessKey("");
     setCustomSecretKey("");
     setCredentialsConfigured(false);
@@ -437,11 +497,13 @@ Ask me anything! Here are popular queries:
           targetSchemeId,
           auditResult,
           auditInput,
-          customCredentials: credentialsConfigured && customAccessKey.trim() && customSecretKey.trim() ? {
-            accessKeyId: customAccessKey.trim(),
-            secretAccessKey: customSecretKey.trim(),
-            region: customRegion.trim() || "us-east-1"
-          } : undefined
+          customCredentials: {
+            accessKeyId: customAccessKey.trim() || undefined,
+            secretAccessKey: customSecretKey.trim() || undefined,
+            region: customRegion.trim() || undefined,
+            groqApiKey: customGroqKey.trim() || undefined,
+            geminiApiKey: customGeminiKey.trim() || undefined,
+          }
         }),
       });
 
@@ -452,11 +514,15 @@ Ask me anything! Here are popular queries:
       const data = await res.json();
       const answerContent = data.answer || "I received your query but could not format a response. Please try again.";
 
-      setModelSource(
-        data.source === "AWS_BEDROCK_LIVE"
-          ? (data.modelUsed || "AWS Bedrock Claude 3.5")
-          : "JanSetu-Civic-RAG (Profile-Aware / 100% Free)"
-      );
+      if (data.source === "AWS_BEDROCK_LIVE") {
+        setModelSource(data.modelUsed || "AWS Bedrock Claude 3.5");
+      } else if (data.source === "GROQ_LLAMA_LIVE") {
+        setModelSource(data.modelUsed || "⚡ Groq Llama 3.3 70B (Live)");
+      } else if (data.source === "GOOGLE_GEMINI_LIVE") {
+        setModelSource(data.modelUsed || "🌟 Gemini 2.0 Flash (Live)");
+      } else {
+        setModelSource("JanSetu-Civic-RAG (Profile-Aware / 100% Free)");
+      }
 
       const assistantMessage: ChatMessage = {
         role: "assistant",
@@ -540,82 +606,176 @@ Ask me anything! Here are popular queries:
             </button>
           </div>
 
-          {/* Optional AWS Key Toggle Button */}
+          {/* AI Settings Toggle Button */}
           <button
             onClick={() => setShowAwsSettings(!showAwsSettings)}
             className="flex items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-medium text-[#F5E29F] hover:bg-white/20 transition-all border border-white/15 cursor-pointer"
           >
             <Key className="size-3.5 text-[#DFB738]" />
-            <span>{credentialsConfigured ? "AWS Key: Active" : "AWS Key (Optional)"}</span>
+            <span>
+              {customGroqKey.trim()
+                ? "⚡ Groq 70B: Active"
+                : customGeminiKey.trim()
+                ? "🌟 Gemini Flash: Active"
+                : customAccessKey.trim() && customSecretKey.trim()
+                ? "☁️ Bedrock: Configured"
+                : "AI Keys (Free 2-Min Setup)"}
+            </span>
             {showAwsSettings ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
           </button>
         </div>
       </div>
 
-      {/* Optional AWS Bedrock Settings Drawer */}
+      {/* Multi-Provider AI Settings Drawer */}
       {showAwsSettings && (
         <div className="luxury-card rounded-2xl p-5 border border-[#DFC8A5] bg-[#FAF7F2] shadow-sm animate-in slide-in-from-top-2 duration-200">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <ShieldCheck className="size-4 text-emerald-600" />
-                <h4 className="font-serif font-bold text-sm text-[#0B1B4F]">
-                  AWS Bedrock Integration (100% Optional)
+                <Sparkles className="size-4 text-[#DFB738]" />
+                <h4 className="font-serif font-bold text-sm sm:text-base text-[#0B1B4F]">
+                  AI Intelligence Providers & Free Keys Setup
                 </h4>
               </div>
-              <p className="mt-1 text-xs text-slate-600 leading-relaxed">
-                <strong>No API Key is required</strong> to use JanSetu AI! By default, the assistant runs on our built-in <strong>Zero-Fail Civic RAG Engine</strong> with official government rules. If you wish to connect live to your AWS Bedrock Claude 3.5 Sonnet foundation model, you can optionally paste your credentials below:
+              <p className="mt-1 text-xs text-slate-600 leading-relaxed max-w-2xl">
+                JanSetu runs with <strong>Zero-Fail offline resilience</strong> by default. You can plug in a <strong>100% free</strong> instant API key below to enable live high-speed streaming and multimodal vision document inspection:
               </p>
             </div>
             {credentialsConfigured && (
-              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800 border border-emerald-300">
-                Connected
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-bold text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                <CheckCircle2 className="size-3.5 text-emerald-600" />
+                Live Keys Active
               </span>
             )}
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                AWS Access Key ID
-              </label>
-              <input
-                type="text"
-                value={customAccessKey}
-                onChange={(e) => setCustomAccessKey(e.target.value)}
-                placeholder="AKIAIOSFODNN7EXAMPLE"
-                className="w-full rounded-xl border border-[#DFC8A5] bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
-              />
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {/* 1. Groq Cloud (Free Llama 3.3 70B) */}
+            <div className="rounded-xl border border-[#DFC8A5] bg-white p-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B1B4F]">
+                  <Zap className="size-3.5 text-amber-500" />
+                  <span>Groq Cloud (Meta Llama 3.3 70B)</span>
+                </div>
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                  Recommended • Free
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Superfast streaming at ~500 tokens/sec. 100% free tier, zero credit card required.
+              </p>
+              <div className="mt-3">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Groq API Key
+                </label>
+                <input
+                  type="password"
+                  value={customGroqKey}
+                  onChange={(e) => setCustomGroqKey(e.target.value)}
+                  placeholder="gsk_..."
+                  className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2] px-3 py-1.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
+                />
+              </div>
+              <div className="mt-2 flex justify-end">
+                <a
+                  href="https://console.groq.com/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0B1B4F] hover:text-amber-600 underline"
+                >
+                  <span>Get Free Groq Key (30 Sec)</span>
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
             </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                AWS Secret Access Key
-              </label>
-              <input
-                type="password"
-                value={customSecretKey}
-                onChange={(e) => setCustomSecretKey(e.target.value)}
-                placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-                className="w-full rounded-xl border border-[#DFC8A5] bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
-              />
-            </div>
-            <div>
-              <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
-                AWS Region
-              </label>
-              <input
-                type="text"
-                value={customRegion}
-                onChange={(e) => setCustomRegion(e.target.value)}
-                placeholder="us-east-1"
-                className="w-full rounded-xl border border-[#DFC8A5] bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
-              />
+
+            {/* 2. Google Gemini (Free 2.0 Flash + Vision) */}
+            <div className="rounded-xl border border-[#DFC8A5] bg-white p-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B1B4F]">
+                  <Sparkles className="size-3.5 text-blue-600" />
+                  <span>Google Gemini 2.0 Flash (Vision + Chat)</span>
+                </div>
+                <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 border border-blue-200">
+                  Multimodal • Free
+                </span>
+              </div>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Powers both conversational chat and direct image audit for Aadhaar, marksheets, & passbooks.
+              </p>
+              <div className="mt-3">
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                  Gemini API Key
+                </label>
+                <input
+                  type="password"
+                  value={customGeminiKey}
+                  onChange={(e) => setCustomGeminiKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full rounded-lg border border-[#DFC8A5] bg-[#FAF7F2] px-3 py-1.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:bg-white focus:outline-hidden"
+                />
+              </div>
+              <div className="mt-2 flex justify-end">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0B1B4F] hover:text-blue-600 underline"
+                >
+                  <span>Get Free Google AI Studio Key</span>
+                  <ExternalLink className="size-3" />
+                </a>
+              </div>
             </div>
           </div>
 
-          <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#EDE6DD]">
+          {/* 3. AWS Bedrock Credentials Accordion/Section */}
+          <div className="mt-4 rounded-xl border border-[#DFC8A5]/60 bg-white/60 p-3.5 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-[#0B1B4F] text-[11px] uppercase tracking-wider">
+                ☁️ AWS Bedrock IAM Credentials (Optional)
+              </span>
+              <span className="text-[10px] text-slate-500">
+                us-east-1 • Claude 3.5 Sonnet / Nova
+              </span>
+            </div>
+            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+              <div>
+                <input
+                  type="text"
+                  value={customAccessKey}
+                  onChange={(e) => setCustomAccessKey(e.target.value)}
+                  placeholder="AWS Access Key ID"
+                  className="w-full rounded-lg border border-[#DFC8A5] bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <input
+                  type="password"
+                  value={customSecretKey}
+                  onChange={(e) => setCustomSecretKey(e.target.value)}
+                  placeholder="AWS Secret Access Key"
+                  className="w-full rounded-lg border border-[#DFC8A5] bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
+                />
+              </div>
+              <div>
+                <input
+                  type="text"
+                  value={customRegion}
+                  onChange={(e) => setCustomRegion(e.target.value)}
+                  placeholder="Region (default: us-east-1)"
+                  className="w-full rounded-lg border border-[#DFC8A5] bg-white px-2.5 py-1.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
+                />
+              </div>
+            </div>
+            <p className="mt-1.5 text-[10px] text-slate-500">
+              Note: If your AWS Bedrock models are awaiting verification from AWS Support (<code>aws-verification@amazon.com</code>), Groq or Gemini above will run with zero downtime!
+            </p>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EDE6DD]">
             <div className="text-[11px] text-slate-500">
-              * Credentials remain strictly on your local browser session and are sent directly to AWS Bedrock via secure server routes.
+              🔒 Keys are securely stored in your local browser and sent directly to server endpoints.
             </div>
             <div className="flex items-center gap-2">
               {credentialsConfigured && (
@@ -624,16 +784,16 @@ Ask me anything! Here are popular queries:
                   onClick={handleClearCredentials}
                   className="rounded-lg px-3 py-1.5 text-xs text-rose-700 hover:bg-rose-50 font-bold transition-colors cursor-pointer"
                 >
-                  Clear & Revert to Built-in Engine
+                  Clear All Keys
                 </button>
               )}
               <button
                 type="button"
                 onClick={handleSaveCredentials}
-                disabled={!customAccessKey.trim() || !customSecretKey.trim()}
-                className="rounded-xl bg-[#0B1B4F] px-4 py-1.5 text-xs font-bold text-[#F5E29F] hover:bg-[#152864] disabled:opacity-50 transition-all cursor-pointer border border-[#DFB738]/40 shadow-xs"
+                className="rounded-xl bg-[#0B1B4F] px-5 py-2 text-xs font-bold text-[#F5E29F] hover:bg-[#152864] transition-all cursor-pointer border border-[#DFB738]/40 shadow-xs flex items-center gap-1.5"
               >
-                Save & Use Bedrock
+                <CheckCircle2 className="size-3.5 text-[#DFB738]" />
+                <span>Save & Activate Provider</span>
               </button>
             </div>
           </div>

@@ -13,7 +13,7 @@ export interface ChatMessage {
 
 export interface BedrockResponse {
   answer: string;
-  source: "AWS_BEDROCK_LIVE" | "ZERO_FAIL_CIVIC_RAG";
+  source: "AWS_BEDROCK_LIVE" | "GROQ_LLAMA_LIVE" | "GOOGLE_GEMINI_LIVE" | "ZERO_FAIL_CIVIC_RAG";
   modelUsed: string;
   relevantSchemes?: string[];
   suggestedQuestions?: string[];
@@ -24,6 +24,8 @@ export interface AwsCredentials {
   secretAccessKey?: string;
   region?: string;
   sessionToken?: string;
+  groqApiKey?: string;
+  geminiApiKey?: string;
 }
 
 export interface CopilotContext {
@@ -32,6 +34,88 @@ export interface CopilotContext {
   targetSchemeId?: string;
   auditResult?: DocumentAuditResult;
   auditInput?: DocumentAuditInput;
+}
+
+/**
+ * Ultra-fast Groq Cloud inference (Llama 3.3 70B Versatile)
+ * Free, instantaneous, zero credit card required (https://console.groq.com/keys)
+ */
+async function callGroqChat(
+  apiKey: string,
+  systemPrompt: string,
+  history: ChatMessage[],
+  userQuery: string
+): Promise<string> {
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history.filter((m) => m.role !== "system").map((m) => ({ role: m.role, content: m.content })),
+    { role: "user", content: userQuery },
+  ];
+
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey.trim()}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages,
+      temperature: 0.6,
+      max_tokens: 1200,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq API error (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || "";
+}
+
+/**
+ * Google Gemini 2.0 Flash inference
+ * Free tier, high intelligence (https://aistudio.google.com/app/apikey)
+ */
+async function callGeminiChat(
+  apiKey: string,
+  systemPrompt: string,
+  history: ChatMessage[],
+  userQuery: string
+): Promise<string> {
+  const contents = [
+    ...history.filter((m) => m.role !== "system").map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    })),
+    { role: "user", parts: [{ text: userQuery }] },
+  ];
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey.trim()}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 1200,
+        },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 /**
@@ -76,25 +160,8 @@ export async function askJanSetuCopilot(
   );
   const isCurrentSchemeEligible = currentSchemeEval ? currentSchemeEval.decision === "ALLOW" : false;
 
-  // Check if real AWS Bedrock credentials exist and are configured
-  if (
-    accessKeyId &&
-    secretAccessKey &&
-    !accessKeyId.includes("your-access-key") &&
-    accessKeyId.trim().length > 10 &&
-    secretAccessKey.trim().length > 10
-  ) {
-    try {
-      const client = new BedrockRuntimeClient({
-        region: awsRegion,
-        credentials: {
-          accessKeyId: accessKeyId.trim(),
-          secretAccessKey: secretAccessKey.trim(),
-          ...(sessionToken ? { sessionToken: sessionToken.trim() } : {}),
-        },
-      });
-
-      const systemPrompt = `You are JanSetu AI, an expert Indian Civic & Student Scholarship Copilot built for the WeMakeDevs AWS First Commit Hackathon.
+  // Formulate universal contextual system prompt with real citizen profile & gazette context
+  const systemPrompt = `You are JanSetu AI, an expert Indian Civic & Student Scholarship Copilot built for the WeMakeDevs AWS First Commit Hackathon.
 You provide accurate, empathetic, conversational, and step-by-step guidance on scholarships, certificates, and government benefits for Indian students (ST, SC, OBC, EWS, General).
 
 Active Citizen Profile Context:
@@ -153,6 +220,26 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
 })))}
 `;
 
+  // ============================================================================
+  // 1. PRIMARY LIVE LLM: AMAZON BEDROCK RUNTIME
+  // ============================================================================
+  if (
+    accessKeyId &&
+    secretAccessKey &&
+    !accessKeyId.includes("your-access-key") &&
+    accessKeyId.trim().length > 10 &&
+    secretAccessKey.trim().length > 10
+  ) {
+    try {
+      const client = new BedrockRuntimeClient({
+        region: awsRegion,
+        credentials: {
+          accessKeyId: accessKeyId.trim(),
+          secretAccessKey: secretAccessKey.trim(),
+          ...(sessionToken ? { sessionToken: sessionToken.trim() } : {}),
+        },
+      });
+
       let answer = "";
       try {
         const converseCmd = new ConverseCommand({
@@ -174,7 +261,6 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
         const response = await client.send(converseCmd);
         answer = response.output?.message?.content?.[0]?.text || "Response generated successfully.";
       } catch (convErr) {
-        // Fallback for Claude if older InvokeModel format is preferred
         if (modelId.includes("anthropic")) {
           const payload = {
             anthropic_version: "bedrock-2023-05-31",
@@ -200,19 +286,60 @@ ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
         }
       }
 
-      return {
-        answer,
-        source: "AWS_BEDROCK_LIVE",
-        modelUsed: modelId
-      };
+      if (answer && answer.trim()) {
+        return {
+          answer,
+          source: "AWS_BEDROCK_LIVE",
+          modelUsed: modelId
+        };
+      }
     } catch (err: unknown) {
-      console.warn("AWS Bedrock live invocation failed or fell back: ", (err as Error)?.message);
-      // Seamlessly fall through to deterministic Civic RAG engine
+      console.warn("AWS Bedrock live invocation notice (account verification or policy lock):", (err as Error)?.message);
     }
   }
 
   // ============================================================================
-  // 2. ZERO-FAIL CIVIC RAG ENGINE (OFFLINE / LOCALSTACK / ZERO-KEY MODE)
+  // 2. INSTANT FREE LIVE LLM: GROQ CLOUD (LLAMA 3.3 70B VERSATILE)
+  // Zero setup, 100% free, ~500 tokens/sec (https://console.groq.com/keys)
+  // ============================================================================
+  const groqKey = customCredentials?.groqApiKey || process.env.GROQ_API_KEY;
+  if (groqKey && groqKey.trim().length > 10) {
+    try {
+      const groqAnswer = await callGroqChat(groqKey, systemPrompt, history, userQuery);
+      if (groqAnswer && groqAnswer.trim()) {
+        return {
+          answer: groqAnswer,
+          source: "GROQ_LLAMA_LIVE",
+          modelUsed: "Meta Llama 3.3 70B (via Groq Cloud)",
+        };
+      }
+    } catch (groqErr) {
+      console.warn("Groq live invocation notice:", (groqErr as Error)?.message);
+    }
+  }
+
+  // ============================================================================
+  // 3. INSTANT FREE LIVE LLM: GOOGLE GEMINI 2.0 FLASH
+  // Zero setup, 100% free tier (https://aistudio.google.com/app/apikey)
+  // ============================================================================
+  const geminiKey = customCredentials?.geminiApiKey || process.env.GEMINI_API_KEY;
+  if (geminiKey && geminiKey.trim().length > 10) {
+    try {
+      const geminiAnswer = await callGeminiChat(geminiKey, systemPrompt, history, userQuery);
+      if (geminiAnswer && geminiAnswer.trim()) {
+        return {
+          answer: geminiAnswer,
+          source: "GOOGLE_GEMINI_LIVE",
+          modelUsed: "Google Gemini 2.0 Flash",
+        };
+      }
+    } catch (geminiErr) {
+      console.warn("Gemini live invocation notice:", (geminiErr as Error)?.message);
+    }
+  }
+
+  // ============================================================================
+  // 4. ZERO-FAIL CIVIC RAG ENGINE (OFFLINE / LOCALSTACK / ZERO-KEY MODE)
   // Provides instant, personalized responses based on loaded profile & gazettes
   // NO API KEY REQUIRED - 100% Free & Deterministic
   // ============================================================================

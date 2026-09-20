@@ -35,7 +35,7 @@ export interface ExtractedDocumentResult {
   issuingAuthority?: string;
   securityMarkersDetected: string[];
   validationWarnings: string[];
-  extractionSource: "AWS_BEDROCK_VISION" | "INTELLIGENT_OCR_PARSER";
+  extractionSource: "AWS_BEDROCK_VISION" | "GOOGLE_GEMINI_VISION" | "INTELLIGENT_OCR_PARSER";
 }
 
 function getReadableDocTitle(expectedType?: string): string {
@@ -55,7 +55,7 @@ function getReadableDocTitle(expectedType?: string): string {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { fileData, fileName, fileType, expectedType } = body;
+    const { fileData, fileName, fileType, expectedType, customCredentials, geminiApiKey } = body;
 
     if (!fileName) {
       return NextResponse.json(
@@ -66,17 +66,29 @@ export async function POST(req: NextRequest) {
 
     const expectedTitle = getReadableDocTitle(expectedType);
 
+    const effectiveRegion = customCredentials?.region || region;
+    const effectiveAccessKey = customCredentials?.accessKeyId || accessKeyId;
+    const effectiveSecretKey = customCredentials?.secretAccessKey || secretAccessKey;
+    const effectiveSessionToken = customCredentials?.sessionToken || process.env.AWS_SESSION_TOKEN;
+
+    const hasBedrockConfigured = Boolean(
+      effectiveAccessKey &&
+      effectiveSecretKey &&
+      !effectiveAccessKey.includes("your-access-key") &&
+      effectiveAccessKey.trim().length > 10
+    );
+
     // =========================================================================
     // 1. AWS BEDROCK MULTIMODAL VISION & FORENSIC DOCUMENT AUDIT
     // =========================================================================
-    if (isBedrockConfigured() && fileData) {
+    if (hasBedrockConfigured && fileData) {
       try {
         const bedrockClient = new BedrockRuntimeClient({
-          region,
+          region: effectiveRegion,
           credentials: {
-            accessKeyId: accessKeyId!.trim(),
-            secretAccessKey: secretAccessKey!.trim(),
-            ...(process.env.AWS_SESSION_TOKEN ? { sessionToken: process.env.AWS_SESSION_TOKEN.trim() } : {}),
+            accessKeyId: effectiveAccessKey!.trim(),
+            secretAccessKey: effectiveSecretKey!.trim(),
+            ...(effectiveSessionToken ? { sessionToken: effectiveSessionToken.trim() } : {}),
           },
         });
 
@@ -196,7 +208,80 @@ Return STRICTLY a JSON object with:
           }
         }
       } catch (bedrockErr) {
-        console.warn("Bedrock Vision OCR failed, engaging Intelligent Fallback Parser:", bedrockErr);
+        console.warn("Bedrock Vision OCR failed, engaging fallback visual/OCR engines:", bedrockErr);
+      }
+    }
+
+    // =========================================================================
+    // 1.5. GOOGLE GEMINI 2.0 FLASH MULTIMODAL VISION DOCUMENT ANALYZER
+    // =========================================================================
+    const geminiKey = geminiApiKey || customCredentials?.geminiApiKey || process.env.GEMINI_API_KEY;
+    if (geminiKey && geminiKey.trim().length > 10 && fileData) {
+      try {
+        const base64Data = fileData.includes(",") ? fileData.split(",")[1] : fileData;
+        const isPdf = fileType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
+        const mimeType = isPdf ? "application/pdf" : fileType || "image/jpeg";
+
+        const geminiPrompt = `You are the official Forensic Document Audit Officer for JanSetu AI.
+Analyze this uploaded citizen document / image.
+Expected Statutory Document Slot: "${expectedTitle}" (Internal code: ${expectedType || "statutory_document"}).
+
+TASK:
+1. Inspect the visual image / document. Read all visible text (candidate name, date of birth, document numbers, issuing authority, seals, emblems).
+2. If it is an authentic document matching the expected slot "${expectedTitle}", set "isValidDocument": true and extract all fields.
+3. If it is NOT a valid document for this slot or is an unrelated photo/receipt, set "isValidDocument": false and provide a clear warning:
+   ["❌ Not a Valid Document: The uploaded file does not match the required ${expectedTitle} format. Please upload an authentic, official ${expectedTitle}."]
+4. NEVER claim it is a resume or CV unless the document text explicitly contains an employment resume.
+
+Return strictly a valid JSON object matching:
+{
+  "isValidDocument": boolean,
+  "detectedDocType": "aadhaar" | "marksheet" | "bank_passbook" | "caste_cert" | "income_cert" | "ration_card" | "bonafide_cert" | "disability_cert" | "land_record" | "statutory_cert" | "unknown",
+  "confidenceScore": number,
+  "extractedName": string or null,
+  "extractedDob": string or null,
+  "extractedIdNumber": string or null,
+  "issuingAuthority": string or null,
+  "securityMarkersDetected": string[],
+  "validationWarnings": string[]
+}`;
+
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey.trim()}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      inlineData: {
+                        mimeType,
+                        data: base64Data,
+                      },
+                    },
+                    { text: geminiPrompt },
+                  ],
+                },
+              ],
+            }),
+          }
+        );
+
+        if (geminiRes.ok) {
+          const geminiJson = await geminiRes.json();
+          const rawReply = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          const jsonMatch = rawReply.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            const parsed: ExtractedDocumentResult = JSON.parse(jsonMatch[0]);
+            parsed.extractionSource = "GOOGLE_GEMINI_VISION";
+            return NextResponse.json({ success: true, result: parsed });
+          }
+        }
+      } catch (geminiErr) {
+        console.warn("Gemini multimodal document analysis notice:", geminiErr);
       }
     }
 

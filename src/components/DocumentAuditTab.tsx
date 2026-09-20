@@ -198,6 +198,11 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
         else if (docLower.includes("land") || docLower.includes("patta") || docLower.includes("rofr")) expected = "land_record";
         else expected = docName;
 
+        const savedGeminiKey = typeof window !== "undefined" ? localStorage.getItem("jansetu_gemini_key") || undefined : undefined;
+        const savedAwsKey = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_access_key") || undefined : undefined;
+        const savedAwsSecret = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_secret_key") || undefined : undefined;
+        const savedAwsRegion = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_region") || undefined : undefined;
+
         const response = await fetch("/api/audit/extract-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -206,6 +211,12 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             fileType: file.type,
             fileData: base64Data,
             expectedType: expected,
+            geminiApiKey: savedGeminiKey,
+            customCredentials: savedAwsKey && savedAwsSecret ? {
+              accessKeyId: savedAwsKey,
+              secretAccessKey: savedAwsSecret,
+              region: savedAwsRegion || "us-east-1",
+            } : undefined,
           }),
         });
 
@@ -351,6 +362,11 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
     reader.onload = async () => {
       const base64Data = reader.result as string;
       try {
+        const savedGeminiKey = typeof window !== "undefined" ? localStorage.getItem("jansetu_gemini_key") || undefined : undefined;
+        const savedAwsKey = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_access_key") || undefined : undefined;
+        const savedAwsSecret = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_secret_key") || undefined : undefined;
+        const savedAwsRegion = typeof window !== "undefined" ? localStorage.getItem("jansetu_aws_region") || undefined : undefined;
+
         const response = await fetch("/api/audit/extract-document", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -359,6 +375,12 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
             fileType: file.type,
             fileData: base64Data,
             expectedType: type,
+            geminiApiKey: savedGeminiKey,
+            customCredentials: savedAwsKey && savedAwsSecret ? {
+              accessKeyId: savedAwsKey,
+              secretAccessKey: savedAwsSecret,
+              region: savedAwsRegion || "us-east-1",
+            } : undefined,
           }),
         });
 
