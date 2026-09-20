@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { SchemeOrService, SCHEMES_DATABASE } from "@/data/schemes";
 import { UserProfile, CedarEvaluationResult } from "@/lib/cedar/evaluator";
 import { DocumentAuditInput, DocumentAuditResult, auditCitizenDocuments } from "@/lib/audit/documentAuditor";
@@ -49,10 +49,24 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
   onProfileChange,
   initialSubTab = "docs",
 }) => {
+  const topRef = useRef<HTMLDivElement>(null);
   const [activeSubTab, setActiveSubTab] = useState<
     "docs" | "roadmap" | "offline" | "copilot" | "dossier"
   >(initialSubTab);
   const [showCedarProof, setShowCedarProof] = useState<boolean>(false);
+
+  // Auto-scroll to top when Scheme Workspace is opened or schemeId changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+    topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [schemeId]);
+
+  // Keep activeSubTab in sync if parent changes initialSubTab
+  useEffect(() => {
+    setActiveSubTab(initialSubTab);
+  }, [initialSubTab]);
 
   // Active scheme details
   const activeScheme: SchemeOrService = useMemo(() => {
@@ -70,14 +84,19 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
   }, [auditInput]);
 
   return (
-    <div className="space-y-6">
+    <div ref={topRef} id="scheme-workspace-top" className="space-y-6">
       {/* 1. TOP SCHEME HEADER & SELECTOR BAR */}
       <div className="luxury-card rounded-3xl border border-[#DFC8A5] bg-[#FDFBF7] p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-[#EDE6DD]">
           {/* Back button & Scheme Title */}
           <div className="space-y-1">
             <button
-              onClick={onBackToSchemes}
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+                onBackToSchemes();
+              }}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 hover:text-[#0B1B4F] transition-colors cursor-pointer mb-1"
             >
               <ArrowLeft className="size-3.5" />

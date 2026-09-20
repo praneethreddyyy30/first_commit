@@ -216,6 +216,13 @@ export default function Home() {
     setActiveTab("profile");
   };
 
+  // Smooth scroll to top whenever active tab changes
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [activeTab]);
+
   // User hand-drawn workflow: Selecting one scheme opens the Scheme Workspace
   const handleOpenSchemeWorkspace = (
     schemeId: string,
@@ -224,6 +231,9 @@ export default function Home() {
     setTargetSchemeId(schemeId);
     setWorkspaceSubTab(subTab);
     setActiveTab("workspace");
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   // Find active scheme title & short code for Step 3 badge

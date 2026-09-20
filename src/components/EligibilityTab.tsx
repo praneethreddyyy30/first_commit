@@ -486,7 +486,12 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
               <div className="mt-4 pt-3 border-t border-[#EDE6DD] space-y-2">
                 {onSelectSchemeForWorkspace && (
                   <button
-                    onClick={() => onSelectSchemeForWorkspace(scheme.id)}
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }
+                      onSelectSchemeForWorkspace(scheme.id);
+                    }}
                     className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#0B1B4F] hover:bg-[#071233] text-white py-2.5 px-3 text-xs font-bold transition-all cursor-pointer shadow-sm border border-[#142A6F]"
                   >
                     <span>Select Scheme & Open Dedicated Workspace</span>
@@ -497,7 +502,12 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
                 <div className="flex items-center gap-2">
                   {onNavigateToDocuments && (
                     <button
-                      onClick={() => onNavigateToDocuments(scheme.id)}
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                        onNavigateToDocuments(scheme.id);
+                      }}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#DACBB8] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs"
                     >
                       <FileCheck2 className="size-3.5 text-amber-700" />
@@ -507,7 +517,12 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
 
                   {onNavigateToRoadmap && (
                     <button
-                      onClick={() => onNavigateToRoadmap(scheme.id)}
+                      onClick={() => {
+                        if (typeof window !== "undefined") {
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }
+                        onNavigateToRoadmap(scheme.id);
+                      }}
                       className="flex-1 flex items-center justify-center gap-1.5 rounded-xl border border-[#DACBB8] bg-white px-3 py-2 text-xs font-bold text-[#0B1B4F] hover:bg-[#FAF7F2] transition-colors cursor-pointer shadow-2xs"
                     >
                       <GitFork className="size-3.5 text-sky-700" />
