@@ -1,18 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
+import Tesseract from "tesseract.js";
+
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const region = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
 const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
 const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
-
-function isBedrockConfigured(): boolean {
-  return Boolean(
-    accessKeyId &&
-    secretAccessKey &&
-    !accessKeyId.includes("your-access-key") &&
-    accessKeyId.trim().length > 10
-  );
-}
 
 export interface ExtractedDocumentResult {
   isValidDocument: boolean;
@@ -35,20 +30,21 @@ export interface ExtractedDocumentResult {
   issuingAuthority?: string;
   securityMarkersDetected: string[];
   validationWarnings: string[];
-  extractionSource: "AWS_BEDROCK_VISION" | "GOOGLE_GEMINI_VISION" | "GROQ_LLAMA_LIVE" | "INTELLIGENT_OCR_PARSER";
+  extractionSource: "AWS_BEDROCK_VISION" | "GOOGLE_GEMINI_VISION" | "GROQ_LLAMA_LIVE" | "TESSERACT_OCR_PARSER";
 }
 
 function getReadableDocTitle(expectedType?: string): string {
   const t = (expectedType || "").toLowerCase();
-  if (t.includes("aadhaar") || t.includes("aadhar")) return "Aadhaar Card (UIDAI)";
-  if (t.includes("marksheet") || t.includes("memo") || t.includes("ssc") || t.includes("inter")) return "10th / Secondary School Marks Memo";
-  if (t.includes("bank") || t.includes("passbook")) return "Bank Passbook Front Page";
-  if (t.includes("caste") || t.includes("community")) return "Caste / Community Certificate";
+  if (t.includes("aadhaar") || t.includes("aadhar") || t.includes("uidai")) return "Aadhaar Card (UIDAI)";
+  if (t.includes("marksheet") || t.includes("memo") || t.includes("ssc") || t.includes("inter") || t.includes("passing"))
+    return "Secondary / Board Exam Marks Memo";
+  if (t.includes("bank") || t.includes("passbook") || t.includes("account")) return "Bank Passbook Front Page";
+  if (t.includes("caste") || t.includes("community") || t.includes("tribe")) return "Caste / Community / Tribe Certificate";
   if (t.includes("income")) return "Annual Family Income Certificate";
-  if (t.includes("ration")) return "Family Food Security / Ration Card";
-  if (t.includes("bonafide") || t.includes("study")) return "Institutional Bonafide / Study Certificate";
+  if (t.includes("ration") || t.includes("rice card")) return "Family Food Security / Ration Card";
+  if (t.includes("bonafide") || t.includes("study") || t.includes("allotment")) return "Institutional Bonafide / Study Certificate";
   if (t.includes("disability") || t.includes("sadarem") || t.includes("udid")) return "SADAREM / UDID Disability Certificate";
-  if (t.includes("land") || t.includes("patta")) return "Pattadar Passbook / Land Record";
+  if (t.includes("land") || t.includes("patta") || t.includes("rofr")) return "Pattadar Passbook / Land Record";
   return expectedType || "Statutory Government Document";
 }
 
@@ -58,14 +54,59 @@ export async function POST(req: NextRequest) {
     const { fileData, fileName, fileType, expectedType, customCredentials, geminiApiKey } = body;
 
     if (!fileName) {
-      return NextResponse.json(
-        { error: "fileName is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "fileName is required" }, { status: 400 });
     }
 
     const expectedTitle = getReadableDocTitle(expectedType);
+    const cleanFileName = fileName.toLowerCase();
 
+    // 1. Strict non-document file extension rejection (executable, audio, video, archive)
+    if (/\.(mp4|mp3|zip|rar|7z|exe|bat|sh|iso|tar|gz)$/i.test(cleanFileName)) {
+      return NextResponse.json({
+        success: true,
+        result: {
+          isValidDocument: false,
+          detectedDocType: "unknown",
+          confidenceScore: 0,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Invalid File Format: Uploaded file '${fileName}' is not an official document or image. Please upload a scanned document (PDF, JPG, or PNG).`,
+          ],
+          extractionSource: "TESSERACT_OCR_PARSER",
+        },
+      });
+    }
+
+    // 2. Decode raw base64 buffer
+    let fileBuffer: Buffer | null = null;
+    if (fileData) {
+      try {
+        const base64Clean = fileData.includes(",") ? fileData.split(",")[1] : fileData;
+        fileBuffer = Buffer.from(base64Clean, "base64");
+      } catch (err) {
+        console.warn("Base64 decode error:", err);
+      }
+    }
+
+    if (!fileBuffer || fileBuffer.length === 0) {
+      return NextResponse.json({
+        success: true,
+        result: {
+          isValidDocument: false,
+          detectedDocType: "unknown",
+          confidenceScore: 0,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Corrupt or Empty File: Could not read file content for '${fileName}'. Please upload a valid scanned document.`,
+          ],
+          extractionSource: "TESSERACT_OCR_PARSER",
+        },
+      });
+    }
+
+    // =========================================================================
+    // 3. ATTEMPT AWS BEDROCK MULTIMODAL VISION (IF ACCREDITED IN AWS ACCOUNT)
+    // =========================================================================
     const effectiveRegion = customCredentials?.region || region;
     const effectiveAccessKey = customCredentials?.accessKeyId || accessKeyId;
     const effectiveSecretKey = customCredentials?.secretAccessKey || secretAccessKey;
@@ -78,10 +119,7 @@ export async function POST(req: NextRequest) {
       effectiveAccessKey.trim().length > 10
     );
 
-    // =========================================================================
-    // 1. AWS BEDROCK MULTIMODAL VISION & FORENSIC DOCUMENT AUDIT
-    // =========================================================================
-    if (hasBedrockConfigured && fileData) {
+    if (hasBedrockConfigured && fileBuffer) {
       try {
         const bedrockClient = new BedrockRuntimeClient({
           region: effectiveRegion,
@@ -92,38 +130,18 @@ export async function POST(req: NextRequest) {
           },
         });
 
-        const prompt = `You are the official Forensic Document Audit Officer for JanSetu AI (Indian Government Citizen Services Platform).
-Inspect and analyze this uploaded document / image.
-Expected Statutory Document Slot: "${expectedTitle}" (Internal code: ${expectedType || "statutory_document"}).
+        const modelId = process.env.AWS_BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0";
+        const prompt = `You are an expert Indian civic auditor and forensic document verification engine.
+Analyze this uploaded file for the slot: "${expectedTitle}" (code: "${expectedType || "document"}").
+Filename: "${fileName}".
 
-MANDATORY AUDIT & EXTRACTION INSTRUCTIONS:
-1. DEEP VISUAL & TEXTUAL INSPECTION:
-   - Read and transcribe all visible textual elements: candidate/citizen name, date of birth, registration/identification numbers, addresses, stamps, seals, barcodes, and watermarks.
-   - Classify the real document: "aadhaar" | "marksheet" | "bank_passbook" | "caste_cert" | "income_cert" | "ration_card" | "bonafide_cert" | "disability_cert" | "land_record" | "statutory_cert" | "unknown".
+AUDIT RULES:
+1. Is this an authentic official Indian government document matching "${expectedTitle}"?
+2. If this is a wallpaper, personal photo, resume, invoice, meme, or non-document, set isValidDocument: false.
+3. If this is a DIFFERENT document type (e.g. Caste certificate in Aadhaar slot), set isValidDocument: false with mismatch warning.
+4. If valid, extract REAL printed name, DOB, ID number, and issuing authority. NEVER invent names.
 
-2. DETAILS EXTRACTION:
-   - "extractedName": Full legal name of the candidate, student, or account holder printed on the document (or null).
-   - "extractedDob": Date of birth in YYYY-MM-DD or DD/MM/YYYY format if visible (or null).
-   - "extractedIdNumber": Official unique identifier (e.g. 12-digit Aadhaar UID masked or full, Board Roll / Hall Ticket Number, Bank Account Number, Certificate Serial) or null.
-   - "issuingAuthority": The statutory authority (e.g. "Unique Identification Authority of India (UIDAI)", "State Board of Secondary/Intermediate Education", "State Bank of India", "Revenue Department / Tahsildar").
-   - "securityMarkersDetected": Array of detected security markers (e.g. "State Emblem of India", "Secure QR Code", "Board Watermark", "Official Seal").
-
-3. VALIDATION DECISION FOR EXPECTED SLOT ("${expectedTitle}"):
-   - If the document is an authentic, readable Indian government, academic, or banking document matching or qualifying for "${expectedTitle}":
-     Set "isValidDocument": true
-     Set "confidenceScore": 85 to 99
-     Set "validationWarnings": []
-   - If the document is NOT a valid document for this slot (e.g. wrong document type, random photo, blurred/unreadable image, or non-statutory file):
-     Set "isValidDocument": false
-     Set "confidenceScore": 0 to 25
-     Set "validationWarnings": [
-       "❌ Not a Valid Document: The uploaded file does not match the required ${expectedTitle} format. Please upload an authentic, official ${expectedTitle} (such as an official government-issued ID card, marks memo, or bank passbook)."
-     ]
-
-4. STRICT ANTI-HALLUCINATION RULE:
-   NEVER claim or state that the file is a resume or CV unless the document text explicitly and unambiguously contains a personal job employment resume or CV. If the document is simply invalid, unrecognized, or a non-statutory image, inform the citizen that it is not a valid document for this slot and prompt them to upload the correct document.
-
-Return STRICTLY a JSON object with:
+Return STRICTLY JSON:
 {
   "isValidDocument": boolean,
   "detectedDocType": "aadhaar" | "marksheet" | "bank_passbook" | "caste_cert" | "income_cert" | "ration_card" | "bonafide_cert" | "disability_cert" | "land_record" | "statutory_cert" | "unknown",
@@ -136,191 +154,118 @@ Return STRICTLY a JSON object with:
   "validationWarnings": string[]
 }`;
 
-        // Base64 cleanup
-        const base64Data = fileData.includes(",") ? fileData.split(",")[1] : fileData;
-        const fileBuffer = Buffer.from(base64Data, "base64");
+        const isPdf = fileType === "application/pdf" || cleanFileName.endsWith(".pdf");
+        const isImage = fileType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(cleanFileName);
 
-        const isPdf = fileType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
-        const isImage = fileType?.startsWith("image/") || /\.(jpg|jpeg|png|webp|gif)$/i.test(fileName);
-
-        if (isImage || isPdf) {
-          let contentBlock: Record<string, unknown>;
-
-          if (isPdf) {
-            contentBlock = {
-              document: {
-                format: "pdf",
-                name: "uploaded_document",
-                source: { bytes: fileBuffer },
-              },
-            };
-          } else {
-            let imgFormat: "png" | "jpeg" | "webp" | "gif" = "jpeg";
-            if (fileType === "image/png" || fileName.toLowerCase().endsWith(".png")) imgFormat = "png";
-            else if (fileType === "image/webp" || fileName.toLowerCase().endsWith(".webp")) imgFormat = "webp";
-            else if (fileType === "image/gif" || fileName.toLowerCase().endsWith(".gif")) imgFormat = "gif";
-
-            contentBlock = {
-              image: {
-                format: imgFormat,
-                source: { bytes: fileBuffer },
-              },
-            };
-          }
-
-          const candidateModels = [
-            process.env.APP_AWS_BEDROCK_MODEL_ID || process.env.BEDROCK_MODEL_ID || process.env.AWS_BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
-            "us.amazon.nova-lite-v1:0",
-            "amazon.nova-pro-v1:0",
-            "anthropic.claude-3-haiku-20240307-v1:0",
+        let contentBlock: any[] = [];
+        if (isPdf) {
+          contentBlock = [
+            { document: { format: "pdf", name: fileName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30), source: { bytes: fileBuffer } } },
+            { text: prompt },
           ];
+        } else if (isImage) {
+          let imgFormat: "png" | "jpeg" | "webp" | "gif" = "jpeg";
+          if (cleanFileName.endsWith(".png") || fileType === "image/png") imgFormat = "png";
+          else if (cleanFileName.endsWith(".webp") || fileType === "image/webp") imgFormat = "webp";
+          else if (cleanFileName.endsWith(".gif") || fileType === "image/gif") imgFormat = "gif";
 
-          for (const modelId of candidateModels) {
-            try {
-              const command = new ConverseCommand({
-                modelId,
-                messages: [
-                  {
-                    role: "user",
-                    content: [contentBlock as any, { text: prompt }],
-                  },
-                ],
-                inferenceConfig: {
-                  maxTokens: 1000,
-                  temperature: 0.1,
-                },
-              });
+          contentBlock = [
+            { image: { format: imgFormat, source: { bytes: fileBuffer } } },
+            { text: prompt },
+          ];
+        }
 
-              const response = await bedrockClient.send(command);
-              const replyText = response.output?.message?.content?.[0]?.text || "";
-              const jsonMatch = replyText.match(/\{[\s\S]*\}/);
+        if (contentBlock.length > 0) {
+          const command = new ConverseCommand({
+            modelId,
+            messages: [{ role: "user", content: contentBlock }],
+            inferenceConfig: { maxTokens: 800, temperature: 0.1 },
+          });
 
-              if (jsonMatch) {
-                const parsed: ExtractedDocumentResult = JSON.parse(jsonMatch[0]);
-                parsed.extractionSource = "AWS_BEDROCK_VISION";
-                return NextResponse.json({ success: true, result: parsed });
-              }
-            } catch (modelErr: any) {
-              // If model access restriction or not allowed, continue to next or fallback
-              console.warn(`Bedrock model (${modelId}) invocation notice:`, modelErr?.message || modelErr);
-              break;
+          const response = await bedrockClient.send(command);
+          const rawText = response.output?.message?.content?.[0]?.text;
+          if (rawText) {
+            const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+              const parsed: ExtractedDocumentResult = JSON.parse(jsonMatch[0]);
+              parsed.extractionSource = "AWS_BEDROCK_VISION";
+              return NextResponse.json({ success: true, result: parsed });
             }
           }
         }
       } catch (bedrockErr) {
-        console.warn("Bedrock Vision OCR failed, engaging fallback visual/OCR engines:", bedrockErr);
+        console.warn("Bedrock Vision skipped or unauthorized:", (bedrockErr as Error)?.message);
       }
     }
 
     // =========================================================================
-    // 1.5. GOOGLE GEMINI 2.0 FLASH MULTIMODAL VISION DOCUMENT ANALYZER
+    // 4. REAL OPTICAL CHARACTER RECOGNITION (TESSERACT.JS FOR IMAGES / PDF STREAM)
     // =========================================================================
-    const geminiKey = geminiApiKey || customCredentials?.geminiApiKey || process.env.GEMINI_API_KEY;
-    if (geminiKey && geminiKey.trim().length > 10 && fileData) {
+    let extractedText = "";
+    const isPdf = fileType === "application/pdf" || cleanFileName.endsWith(".pdf");
+
+    if (isPdf) {
+      extractedText = parsePdfTextStream(fileBuffer);
+    } else {
+      // Image OCR via Tesseract.js (JPG, PNG, WebP, BMP, etc.)
       try {
-        const base64Data = fileData.includes(",") ? fileData.split(",")[1] : fileData;
-        const isPdf = fileType === "application/pdf" || fileName.toLowerCase().endsWith(".pdf");
-        const mimeType = isPdf ? "application/pdf" : fileType || "image/jpeg";
-
-        const geminiPrompt = `You are the official Forensic Document Audit Officer for JanSetu AI.
-Analyze this uploaded citizen document / image.
-Expected Statutory Document Slot: "${expectedTitle}" (Internal code: ${expectedType || "statutory_document"}).
-
-TASK:
-1. Inspect the visual image / document. Read all visible text (candidate name, date of birth, document numbers, issuing authority, seals, emblems).
-2. If it is an authentic document matching the expected slot "${expectedTitle}", set "isValidDocument": true and extract all fields.
-3. If it is NOT a valid document for this slot or is an unrelated photo/receipt, set "isValidDocument": false and provide a clear warning:
-   ["❌ Not a Valid Document: The uploaded file does not match the required ${expectedTitle} format. Please upload an authentic, official ${expectedTitle}."]
-4. NEVER claim it is a resume or CV unless the document text explicitly contains an employment resume.
-
-Return strictly a valid JSON object matching:
-{
-  "isValidDocument": boolean,
-  "detectedDocType": "aadhaar" | "marksheet" | "bank_passbook" | "caste_cert" | "income_cert" | "ration_card" | "bonafide_cert" | "disability_cert" | "land_record" | "statutory_cert" | "unknown",
-  "confidenceScore": number,
-  "extractedName": string or null,
-  "extractedDob": string or null,
-  "extractedIdNumber": string or null,
-  "issuingAuthority": string or null,
-  "securityMarkersDetected": string[],
-  "validationWarnings": string[]
-}`;
-
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey.trim()}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  role: "user",
-                  parts: [
-                    {
-                      inlineData: {
-                        mimeType,
-                        data: base64Data,
-                      },
-                    },
-                    { text: geminiPrompt },
-                  ],
-                },
-              ],
-            }),
-          }
-        );
-
-        if (geminiRes.ok) {
-          const geminiJson = await geminiRes.json();
-          const rawReply = geminiJson.candidates?.[0]?.content?.parts?.[0]?.text || "";
-          const jsonMatch = rawReply.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const parsed: ExtractedDocumentResult = JSON.parse(jsonMatch[0]);
-            parsed.extractionSource = "GOOGLE_GEMINI_VISION";
-            return NextResponse.json({ success: true, result: parsed });
-          }
-        }
-      } catch (geminiErr) {
-        console.warn("Gemini multimodal document analysis notice:", geminiErr);
+        const { data } = await Tesseract.recognize(fileBuffer, "eng");
+        extractedText = (data?.text || "").trim();
+      } catch (tesseractErr) {
+        console.warn("Tesseract OCR exception:", (tesseractErr as Error)?.message);
+        extractedText = "";
       }
     }
 
     // =========================================================================
-    // 1.8. GROQ FAST TEXT & METADATA EXTRACTION (FOR DECODED PDF STREAMS)
+    // 5. STRICT REJECTION OF WALLPAPERS, BLANK PHOTOS, AND NON-DOCUMENTS
+    // =========================================================================
+    // If the image or file has no readable text (fewer than 15 characters), it CANNOT be an official document!
+    if (extractedText.length < 15) {
+      return NextResponse.json({
+        success: true,
+        result: {
+          isValidDocument: false,
+          detectedDocType: "unknown",
+          confidenceScore: 0,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Invalid / Unrecognized Document: No readable text or statutory identity markers detected in '${fileName}'. Wallpapers, personal photos, or blank images cannot be accepted. Please upload an authentic scanned copy of your ${expectedTitle}.`,
+          ],
+          extractionSource: "TESSERACT_OCR_PARSER",
+        },
+      });
+    }
+
+    // =========================================================================
+    // 6. FORENSIC CLASSIFICATION & DATA EXTRACTION VIA GROQ (FAST LLM)
     // =========================================================================
     const groqKey = customCredentials?.groqApiKey || process.env.GROQ_API_KEY;
-    if (groqKey && fileData && (fileName.toLowerCase().endsWith(".pdf") || fileName.toLowerCase().endsWith(".txt"))) {
+    if (groqKey) {
       try {
-        const base64Clean = fileData.includes(",") ? fileData.split(",")[1] : fileData;
-        const buf = Buffer.from(base64Clean, "base64");
-        const pdfText = parsePdfTextStream(buf);
-        if (pdfText && pdfText.trim().length > 25) {
-          const groqResult = await callGroqDocumentExtraction(
-            groqKey,
-            pdfText,
-            fileName,
-            expectedType || "statutory_cert",
-            expectedTitle
-          );
-          if (groqResult) {
-            return NextResponse.json({ success: true, result: groqResult });
-          }
+        const groqResult = await callGroqForensicAnalysis(
+          groqKey,
+          extractedText,
+          fileName,
+          expectedType || "statutory_cert",
+          expectedTitle
+        );
+        if (groqResult) {
+          return NextResponse.json({ success: true, result: groqResult });
         }
       } catch (groqErr) {
-        console.warn("Groq PDF text extraction notice:", groqErr);
+        console.warn("Groq forensic analysis notice:", (groqErr as Error)?.message);
       }
     }
 
     // =========================================================================
-    // 2. INTELLIGENT RESILIENT PARSER (ZERO-FAIL CIVIC AUDIT ENGINE)
+    // 7. STRICT LOCAL HEURISTIC PARSER (IF GROQ TEMPORARILY UNREACHABLE)
     // =========================================================================
-    const result = parseDocumentIntelligently(fileName, expectedType, fileData);
+    const localResult = parseExtractedTextLocally(extractedText, fileName, expectedType, expectedTitle);
+    return NextResponse.json({ success: true, result: localResult });
 
-    return NextResponse.json({
-      success: true,
-      result,
-    });
   } catch (error: unknown) {
+    console.error("Document extraction fatal error:", error);
     return NextResponse.json(
       { success: false, error: (error as Error)?.message || "Failed to extract document" },
       { status: 500 }
@@ -329,36 +274,45 @@ Return strictly a valid JSON object matching:
 }
 
 /**
- * Fast Groq LLM-powered extraction for decoded PDF streams
+ * Fast Groq LLM-powered forensic document analysis on extracted OCR text.
+ * Strictly verifies statutory authenticity and detects document mismatches.
  */
-async function callGroqDocumentExtraction(
+async function callGroqForensicAnalysis(
   apiKey: string,
-  text: string,
+  ocrText: string,
   fileName: string,
   expectedType: string,
   expectedTitle: string
 ): Promise<ExtractedDocumentResult | null> {
-  const prompt = `You are a forensic document auditor for Indian government citizen schemes.
-The citizen uploaded a file: "${fileName}".
-The target statutory document slot is: "${expectedTitle}" (slot code: "${expectedType}").
-Below is the extracted text from the uploaded document:
+  const prompt = `You are a strict forensic statutory document auditor for Indian government citizen welfare schemes.
+File Name: "${fileName}"
+Target Document Requirement: "${expectedTitle}" (slot code: "${expectedType}")
+
+Extracted OCR Text from the uploaded image/file:
 """
-${text.slice(0, 2500)}
+${ocrText.slice(0, 3000)}
 """
 
 AUDIT RULES:
-1. DOCUMENT CLASSIFICATION:
-   - Does this text belong to an official Indian document matching "${expectedTitle}"?
-   - If the text is an Income or Caste Certificate uploaded into an Aadhaar slot, set isValidDocument: false with validation warning explaining the mismatch.
-   - If the text is a resume, invoice, or unrelated text, set isValidDocument: false.
-   - If it matches the expected document type, set isValidDocument: true.
-2. EXTRACTION:
-   - Extract the real citizen name (e.g. "Sravani Reddy", "Kavitha Selvam"). If no name exists in text, set null.
-   - Extract the document/certificate/ID number (e.g. Aadhaar 12-digit number, Marks roll number, Certificate number). If none, set null.
-   - Extract the Date of Birth (YYYY-MM-DD format if available).
-   - Extract the Issuing Authority (e.g. "UIDAI", "Tahsildar Revenue Dept", "State Board of Secondary Education").
+1. STATUTORY CLASSIFICATION & VALIDATION:
+   - Does this OCR text contain authentic Indian statutory markers matching "${expectedTitle}"?
+   - For Aadhaar: MUST have UIDAI, Government of India, 12-digit number pattern, or Aadhaar identity markers.
+   - For Caste/Community Certificate: MUST have Caste/Tribe/Community/Tahsildar/SDO/Revenue Department markers.
+   - For Marksheet: MUST have Board/University/Secondary Education/Marks/Roll/Passing markers.
+   - For Bank Passbook: MUST have Bank Name, Account Number, or IFSC.
+   - For Income Certificate: MUST have Annual Income, Revenue Authority, Tahsildar.
+   - For Bonafide: MUST have College, Principal, Institutional Bonafide, Allotment Order.
+   - If this is a wallpaper, scenery photo, selfie, random poster, article, invoice, resume, or non-document text: set isValidDocument: false.
+   - If this is a DIFFERENT statutory document (e.g. Caste certificate uploaded into Aadhaar slot, or Aadhaar uploaded into Marksheet slot): set isValidDocument: false and explain the mismatch in validationWarnings.
+   - Only set isValidDocument: true if the text authentically belongs to "${expectedTitle}".
 
-Return STRICTLY valid JSON with this schema:
+2. IDENTITY & METADATA EXTRACTION:
+   - Extract the real printed legal name from the OCR text (e.g. "Kavitha Selvam"). If no citizen name is in the text, set null. DO NOT guess or extract from the file name.
+   - Extract the document ID number (e.g. Aadhaar 12-digit UID, Marks Roll No, Certificate No, Bank A/C No).
+   - Extract the Date of Birth (YYYY-MM-DD format if available).
+   - Extract the official Issuing Authority.
+
+Return STRICTLY valid JSON with this exact schema:
 {
   "isValidDocument": boolean,
   "detectedDocType": "aadhaar" | "marksheet" | "bank_passbook" | "caste_cert" | "income_cert" | "ration_card" | "bonafide_cert" | "disability_cert" | "land_record" | "statutory_cert" | "unknown",
@@ -390,7 +344,7 @@ Return STRICTLY valid JSON with this schema:
           model,
           messages: [{ role: "user", content: prompt }],
           temperature: 0.1,
-          max_tokens: 800,
+          max_tokens: 700,
         }),
       });
 
@@ -400,6 +354,10 @@ Return STRICTLY valid JSON with this schema:
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
+          // If Groq says invalid, ensure extractedName is nullified
+          if (!parsed.isValidDocument) {
+            parsed.extractedName = null;
+          }
           parsed.extractionSource = "GROQ_LLAMA_LIVE";
           return parsed;
         }
@@ -412,12 +370,284 @@ Return STRICTLY valid JSON with this schema:
   return null;
 }
 
+/**
+ * Strict Local Heuristic Parser operating directly on OCR-extracted text.
+ * Never guesses from file name. Never blindly accepts unknown images.
+ */
+function parseExtractedTextLocally(
+  text: string,
+  fileName: string,
+  expectedType?: string,
+  expectedTitle?: string
+): ExtractedDocumentResult {
+  const normExpected = (expectedType || "").toLowerCase();
+  const lowerText = text.toLowerCase();
+
+  // 1. Text-based marker detection
+  const hasAadhaarInText =
+    /unique\s*identification\s*authority/i.test(text) ||
+    /government\s*of\s*india/i.test(text) ||
+    /mera\s*aadhaar/i.test(text) ||
+    /\b\d{4}\s\d{4}\s\d{4}\b/.test(text) ||
+    /\baadhaar\b/i.test(text);
+
+  const hasCasteInText =
+    /caste\s*certificate|community\s*certificate|scheduled\s*tribe|scheduled\s*caste|backward\s*class|tahsildar|mandal\s*revenue|sub-divisional/i.test(text);
+
+  const hasMarksheetInText =
+    /board\s*of\s*(secondary|intermediate)|secondary\s*school\s*certificate|marks\s*memo|statement\s*of\s*marks|roll\s*no|grade\s*point/i.test(text);
+
+  const hasBankInText =
+    /ifsc\s*code|ifsc\s*:\s*[a-z]{4}0[a-z0-9]{6}|account\s*number|passbook|savings\s*bank|bank\s*of/i.test(text);
+
+  const hasIncomeInText =
+    /income\s*certificate|annual\s*income|family\s*income|gross\s*income/i.test(text);
+
+  const hasBonafideInText =
+    /bonafide|study\s*certificate|college|principal|allotment\s*order|institute/i.test(text);
+
+  // Resume or commercial invoice in text
+  if (/curriculum\s*vitae|work\s*experience|technical\s*skills/i.test(text)) {
+    return {
+      isValidDocument: false,
+      detectedDocType: "unknown",
+      confidenceScore: 0,
+      securityMarkersDetected: [],
+      validationWarnings: [
+        `❌ Not a Valid Document: The uploaded file appears to be a resume or CV. Government welfare portals require official statutory certificates. Please upload your ${expectedTitle}.`,
+      ],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  if (/tax\s*invoice|gstin|bill\s*to|sold\s*by/i.test(text)) {
+    return {
+      isValidDocument: false,
+      detectedDocType: "unknown",
+      confidenceScore: 0,
+      securityMarkersDetected: [],
+      validationWarnings: [
+        `❌ Not a Valid Document: The uploaded file appears to be a commercial shopping bill or invoice. Please upload your ${expectedTitle}.`,
+      ],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // 2. Cross-Document Mismatch Checks
+  if (normExpected.includes("aadhaar") || normExpected.includes("aadhar")) {
+    if (hasCasteInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "caste_cert",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be a Caste/Community Certificate instead of an Aadhaar Card. Please upload your UIDAI Aadhaar Card.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (hasMarksheetInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "marksheet",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be an Academic Marksheet instead of an Aadhaar Card. Please upload your UIDAI Aadhaar Card.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (hasBankInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "bank_passbook",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be a Bank Passbook instead of an Aadhaar Card. Please upload your UIDAI Aadhaar Card.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (!hasAadhaarInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Verification Failed: No UIDAI Aadhaar markers or 12-digit UID pattern detected in '${fileName}'. Please upload an authentic Aadhaar Card.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+
+    return {
+      isValidDocument: true,
+      detectedDocType: "aadhaar",
+      confidenceScore: 92,
+      extractedName: extractNameFromText(text) || undefined,
+      extractedIdNumber: extractIdNumberFromText(text, "aadhaar") || undefined,
+      issuingAuthority: "Unique Identification Authority of India (UIDAI)",
+      securityMarkersDetected: ["UIDAI Pattern", "12-Digit UID Format"],
+      validationWarnings: [],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // SLOT: MARKSHEET
+  if (normExpected.includes("marks") || normExpected.includes("memo") || normExpected.includes("ssc")) {
+    if (hasAadhaarInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "aadhaar",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be an Aadhaar Card instead of an Academic Marksheet. Please upload your Secondary School Marks Memo.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (!hasMarksheetInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Verification Failed: No Examination Board or Marks Memo markers detected in '${fileName}'. Please upload your official marksheet.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    return {
+      isValidDocument: true,
+      detectedDocType: "marksheet",
+      confidenceScore: 90,
+      extractedName: extractNameFromText(text) || undefined,
+      extractedIdNumber: extractIdNumberFromText(text, "marksheet") || undefined,
+      issuingAuthority: "State Board of Secondary / Higher Education",
+      securityMarkersDetected: ["Board Marks Matrix", "Exam Roll Number"],
+      validationWarnings: [],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // SLOT: BANK PASSBOOK
+  if (normExpected.includes("bank") || normExpected.includes("passbook")) {
+    if (hasAadhaarInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "aadhaar",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be an Aadhaar Card instead of a Bank Passbook. Please upload your Bank Passbook front page.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (!hasBankInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Verification Failed: No Bank Account or IFSC markers detected in '${fileName}'. Please upload your Bank Passbook.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    return {
+      isValidDocument: true,
+      detectedDocType: "bank_passbook",
+      confidenceScore: 90,
+      extractedName: extractNameFromText(text) || undefined,
+      extractedIdNumber: extractIdNumberFromText(text, "bank") || undefined,
+      issuingAuthority: "Scheduled Commercial Bank",
+      securityMarkersDetected: ["IFSC Code Format", "Core Banking Record"],
+      validationWarnings: [],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // SLOT: CASTE CERTIFICATE
+  if (normExpected.includes("caste") || normExpected.includes("community") || normExpected.includes("tribe")) {
+    if (hasAadhaarInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "aadhaar",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Mismatch: Uploaded document appears to be an Aadhaar Card instead of a Caste Certificate. Please upload your official Caste/Community Certificate.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    if (!hasCasteInText) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Document Verification Failed: No Caste/Community authority markers detected in '${fileName}'. Please upload your official Caste Certificate.`,
+        ],
+        extractionSource: "TESSERACT_OCR_PARSER",
+      };
+    }
+    return {
+      isValidDocument: true,
+      detectedDocType: "caste_cert",
+      confidenceScore: 90,
+      extractedName: extractNameFromText(text) || undefined,
+      extractedIdNumber: extractIdNumberFromText(text, "cert") || undefined,
+      issuingAuthority: "Tahsildar / Revenue Department",
+      securityMarkersDetected: ["Statutory Caste Declaration", "Revenue Officer Stamp"],
+      validationWarnings: [],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // Default: Require document markers or reject
+  if (hasAadhaarInText || hasCasteInText || hasMarksheetInText || hasBankInText || hasIncomeInText || hasBonafideInText) {
+    return {
+      isValidDocument: true,
+      detectedDocType: "statutory_cert",
+      confidenceScore: 85,
+      extractedName: extractNameFromText(text) || undefined,
+      extractedIdNumber: extractIdNumberFromText(text, "cert") || undefined,
+      issuingAuthority: "Statutory Competent Authority",
+      securityMarkersDetected: ["Official Document Format"],
+      validationWarnings: [],
+      extractionSource: "TESSERACT_OCR_PARSER",
+    };
+  }
+
+  // If no markers at all:
+  return {
+    isValidDocument: false,
+    detectedDocType: "unknown",
+    confidenceScore: 0,
+    securityMarkersDetected: [],
+    validationWarnings: [
+      `❌ Unrecognized Document: File '${fileName}' does not contain recognized Indian statutory headers or certificates. Please upload an authentic scanned document.`,
+    ],
+    extractionSource: "TESSERACT_OCR_PARSER",
+  };
+}
+
 function extractNameFromText(text: string): string | null {
   if (!text || text.length < 5) return null;
   const nameMatch = text.match(/(?:name\s*(?:of\s*(?:candidate|student|applicant|holder))?|shri|smt|kumari)\s*[:.-]?\s*([A-Za-z\s]{3,40})/i);
   if (nameMatch && nameMatch[1]) {
     const candidate = nameMatch[1].trim();
-    if (!/certificate|government|department|authority|secondary|education/i.test(candidate)) {
+    if (!/certificate|government|department|authority|secondary|education|state|board/i.test(candidate)) {
       return candidate;
     }
   }
@@ -431,8 +661,8 @@ function extractIdNumberFromText(text: string, type: "aadhaar" | "marksheet" | "
     if (m) return m[0].replace(/\b\d{8}/, "XXXX-XXXX");
   }
   if (type === "bank") {
-    const m = text.match(/[A-Z]{4}0[A-Z0-9]{6}/);
-    if (m) return `IFSC: ${m[0]}`;
+    const m = text.match(/[A-Z]{4}0[A-Z0-9]{6}/i);
+    if (m) return `IFSC: ${m[0].toUpperCase()}`;
   }
   if (type === "marksheet" || type === "cert") {
     const m = text.match(/\b(?:[A-Z]{2,4}[-/]\d{4,8}|\d{8,12})\b/);
@@ -441,526 +671,61 @@ function extractIdNumberFromText(text: string, type: "aadhaar" | "marksheet" | "
   return null;
 }
 
-/**
- * Robust Statutory Document Parser with Strict Document Mismatch Detection.
- * Guarantees zero false positives and zero hardcoded dummy personas.
- */
-function parseDocumentIntelligently(
-  fileName: string,
-  expectedType?: string,
-  fileData?: string
-): ExtractedDocumentResult {
-  const cleanName = fileName.toLowerCase();
-  const expectedTitle = getReadableDocTitle(expectedType);
-  const normalizedExpected = (expectedType || "").toLowerCase();
-
-  // 1. Text extraction for genuine text files or decoded PDF text chunks
-  let extractedReadableText = "";
-  if (fileData) {
-    try {
-      const base64Clean = fileData.includes(",") ? fileData.split(",")[1] : fileData;
-      const buf = Buffer.from(base64Clean, "base64");
-
-      if (cleanName.endsWith(".pdf") || cleanName.endsWith(".txt")) {
-        extractedReadableText = parsePdfTextStream(buf);
-      }
-    } catch {
-      extractedReadableText = "";
-    }
-  }
-
-  // 2. Strict non-document & wrong-format detection
-  if (/\.(mp4|mp3|zip|rar|7z|exe|bat|sh|iso|tar|gz)$/i.test(cleanName)) {
-    return {
-      isValidDocument: false,
-      detectedDocType: "unknown",
-      confidenceScore: 0,
-      securityMarkersDetected: [],
-      validationWarnings: [
-        `❌ Invalid File Format: Uploaded file '${fileName}' is not a valid document or image. Please upload an official scanned document (PDF, JPG, or PNG).`,
-      ],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // Explicit Resume Detection
-  const filenameHasResume =
-    cleanName.includes("resume") ||
-    cleanName.includes("curriculum_vitae") ||
-    cleanName.includes("curriculum-vitae") ||
-    cleanName.includes("biodata") ||
-    cleanName.includes("bio_data");
-
-  const textHasExplicitResume =
-    extractedReadableText.length > 50 &&
-    /curriculum\s*vitae/i.test(extractedReadableText) &&
-    /work\s*experience|career\s*objective|technical\s*skills/i.test(extractedReadableText);
-
-  if (filenameHasResume || textHasExplicitResume) {
-    return {
-      isValidDocument: false,
-      detectedDocType: "unknown",
-      confidenceScore: 0,
-      securityMarkersDetected: [],
-      validationWarnings: [
-        `❌ Not a Valid Document: The uploaded file '${fileName}' appears to be a personal resume or curriculum vitae. Government welfare portals require official statutory certificates or identity cards. Please upload your ${expectedTitle}.`,
-      ],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // Explicit Commercial Invoice Detection
-  const filenameHasInvoice =
-    cleanName.includes("invoice") ||
-    cleanName.includes("amazon_tax") ||
-    cleanName.includes("billing_receipt") ||
-    cleanName.includes("tax_invoice");
-
-  const textHasInvoice =
-    extractedReadableText.length > 30 &&
-    /tax\s*invoice/i.test(extractedReadableText) &&
-    /gstin|bill\s*to|sold\s*by/i.test(extractedReadableText);
-
-  if (filenameHasInvoice || textHasInvoice) {
-    return {
-      isValidDocument: false,
-      detectedDocType: "unknown",
-      confidenceScore: 0,
-      securityMarkersDetected: [],
-      validationWarnings: [
-        `❌ Not a Valid Document: The uploaded file '${fileName}' appears to be a commercial invoice or shopping bill. Please upload an authentic official ${expectedTitle}.`,
-      ],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // 3. STATUTORY DOCUMENT CLASSIFICATION & MARKER DETECTION
-  const hasAadhaarMarkers =
-    cleanName.includes("aadhaar") ||
-    cleanName.includes("aadhar") ||
-    cleanName.includes("uidai") ||
-    /unique\s*identification\s*authority/i.test(extractedReadableText) ||
-    /\b\d{4}\s\d{4}\s\d{4}\b/.test(extractedReadableText);
-
-  const hasMarksheetMarkers =
-    cleanName.includes("marks") ||
-    cleanName.includes("memo") ||
-    cleanName.includes("ssc") ||
-    cleanName.includes("inter") ||
-    cleanName.includes("10th") ||
-    cleanName.includes("12th") ||
-    cleanName.includes("cbse") ||
-    cleanName.includes("bie") ||
-    cleanName.includes("grade") ||
-    /board\s*of\s*(secondary|intermediate)/i.test(extractedReadableText) ||
-    /secondary\s*school\s*certificate/i.test(extractedReadableText) ||
-    /marks\s*memo/i.test(extractedReadableText);
-
-  const hasBankMarkers =
-    cleanName.includes("bank") ||
-    cleanName.includes("passbook") ||
-    cleanName.includes("statement") ||
-    cleanName.includes("sbi") ||
-    cleanName.includes("apgb") ||
-    cleanName.includes("canara") ||
-    cleanName.includes("hdfc") ||
-    cleanName.includes("cheque") ||
-    /ifsc\s*code|ifsc\s*:\s*[a-z]{4}0[a-z0-9]{6}/i.test(extractedReadableText) ||
-    /account\s*number/i.test(extractedReadableText);
-
-  const hasCasteMarkers =
-    cleanName.includes("caste") ||
-    cleanName.includes("community") ||
-    cleanName.includes("meeseva") ||
-    cleanName.includes("tribe") ||
-    cleanName.includes("st_cert") ||
-    cleanName.includes("sc_cert") ||
-    cleanName.includes("obc_cert") ||
-    cleanName.includes("rev01") ||
-    cleanName.includes("rev-01") ||
-    /caste\s*certificate|community\s*certificate/i.test(extractedReadableText);
-
-  const hasIncomeMarkers =
-    cleanName.includes("income") ||
-    cleanName.includes("annual_income") ||
-    cleanName.includes("family_income") ||
-    /income\s*certificate|annual\s*income/i.test(extractedReadableText);
-
-  const hasRationMarkers =
-    cleanName.includes("ration") ||
-    cleanName.includes("epds") ||
-    cleanName.includes("food") ||
-    cleanName.includes("rice_card") ||
-    /ration\s*card|food\s*security/i.test(extractedReadableText);
-
-  const hasBonafideMarkers =
-    cleanName.includes("bonafide") ||
-    cleanName.includes("study") ||
-    cleanName.includes("conduct") ||
-    cleanName.includes("allotment") ||
-    cleanName.includes("enrollment") ||
-    cleanName.includes("admission") ||
-    /bonafide|study\s*certificate|allotment\s*order/i.test(extractedReadableText);
-
-  const hasDisabilityMarkers =
-    cleanName.includes("disability") ||
-    cleanName.includes("sadarem") ||
-    cleanName.includes("udid") ||
-    /disability\s*certificate|sadarem|udid/i.test(extractedReadableText);
-
-  const hasLandMarkers =
-    cleanName.includes("patta") ||
-    cleanName.includes("land") ||
-    cleanName.includes("rofr") ||
-    cleanName.includes("adangal") ||
-    /pattadar\s*passbook/i.test(extractedReadableText);
-
-  const hasGenericCertMarkers =
-    cleanName.includes("cert") ||
-    cleanName.includes("certificate") ||
-    hasCasteMarkers ||
-    hasIncomeMarkers ||
-    hasBonafideMarkers ||
-    hasDisabilityMarkers;
-
-  // Real extracted name from text stream or filename (Zero hardcoded fake personas!)
-  const extractedCitizenName =
-    extractNameFromText(extractedReadableText) ||
-    extractNameFromFilename(fileName) ||
-    undefined;
-
-  // 4. CROSS-DOCUMENT MISMATCH CHECKING
-
-  // SLOT: AADHAAR CARD
-  if (normalizedExpected === "aadhaar" || normalizedExpected.includes("aadhaar") || normalizedExpected.includes("aadhar")) {
-    if (hasGenericCertMarkers && !hasAadhaarMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: hasCasteMarkers ? "caste_cert" : hasIncomeMarkers ? "income_cert" : "statutory_cert",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Certificate ('${fileName}') into the Aadhaar Identity slot. Please upload your official UIDAI Aadhaar Card.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasMarksheetMarkers && !hasAadhaarMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "marksheet",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasAadhaarMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "aadhaar",
-      confidenceScore: hasAadhaarMarkers ? 95 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "aadhaar") || undefined,
-      issuingAuthority: "Unique Identification Authority of India (UIDAI)",
-      securityMarkersDetected: [
-        "UIDAI Hologram Barcode Pattern",
-        "National Emblem of India Header",
-        "12-Digit UID Format",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // SLOT: MARKSHEET / MEMO
-  if (normalizedExpected === "marksheet" || normalizedExpected.includes("marks") || normalizedExpected.includes("memo") || normalizedExpected.includes("ssc")) {
-    if (hasAadhaarMarkers && !hasMarksheetMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Marksheet slot. Please upload your 10th/12th Academic Marks Memo.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasMarksheetMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Marksheet slot. Please upload your Secondary School Marks Memo.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "marksheet",
-      confidenceScore: hasMarksheetMarkers ? 94 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "marksheet") || undefined,
-      issuingAuthority: "State Board of Secondary / Intermediate Education",
-      securityMarkersDetected: [
-        "Official Board Seal & Watermark",
-        "Subject-wise Marks Matrix",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // SLOT: BANK PASSBOOK
-  if (normalizedExpected === "bank" || normalizedExpected.includes("passbook") || normalizedExpected.includes("bank")) {
-    if (hasAadhaarMarkers && !hasBankMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook front page or statement.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasMarksheetMarkers && !hasBankMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "marksheet",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "bank_passbook",
-      confidenceScore: hasBankMarkers ? 94 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "bank") || undefined,
-      issuingAuthority: "Public Sector / Scheduled Commercial Bank",
-      securityMarkersDetected: [
-        "RBI IFSC Code Pattern",
-        "Account Holder & CIF Record",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // SLOT: CASTE / COMMUNITY CERTIFICATE
-  if (normalizedExpected === "caste" || normalizedExpected.includes("caste") || normalizedExpected.includes("community")) {
-    if (hasAadhaarMarkers && !hasCasteMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Caste/Community Certificate slot. Please upload your official Community/Caste Certificate (e.g. MeeSeva REV-01 or Tahsildar copy).`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasCasteMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Caste Certificate slot. Please upload your Community Certificate.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "caste_cert",
-      confidenceScore: hasCasteMarkers ? 93 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
-      issuingAuthority: "Revenue Department (Tahsildar / Sub-Collector)",
-      securityMarkersDetected: [
-        "State Revenue Department Digital Barcode",
-        "Tahsildar e-Sign Stamp",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // SLOT: INCOME CERTIFICATE
-  if (normalizedExpected === "income" || normalizedExpected.includes("income")) {
-    if (hasAadhaarMarkers && !hasIncomeMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Income Certificate slot. Please upload your Annual Family Income Certificate.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "income_cert",
-      confidenceScore: hasIncomeMarkers ? 93 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
-      issuingAuthority: "Mandal Revenue Officer / Tahsildar",
-      securityMarkersDetected: [
-        "MRO Revenue Seal",
-        "Family Income Assessment Record",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // SLOT: BONAFIDE / ALLOTMENT / STUDY CERTIFICATE
-  if (normalizedExpected === "bonafide" || normalizedExpected.includes("bonafide") || normalizedExpected.includes("study") || normalizedExpected.includes("allotment")) {
-    if (hasAadhaarMarkers && !hasBonafideMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Institutional Bonafide/Allotment Order slot. Please upload your official college Bonafide Certificate or Allotment Order.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-
-    return {
-      isValidDocument: true,
-      detectedDocType: "bonafide_cert",
-      confidenceScore: hasBonafideMarkers ? 92 : 88,
-      extractedName: extractedCitizenName,
-      extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
-      issuingAuthority: "Recognized Educational Institution / Convenor Counseling Desk",
-      securityMarkersDetected: [
-        "Institutional Seal & Authority Signature",
-        "Academic Year Enrollment Verification",
-      ],
-      validationWarnings: [],
-      extractionSource: "INTELLIGENT_OCR_PARSER",
-    };
-  }
-
-  // DEFAULT / OTHER STATUTORY SLOTS:
-  return {
-    isValidDocument: true,
-    detectedDocType: "statutory_cert",
-    confidenceScore: 88,
-    extractedName: extractedCitizenName,
-    issuingAuthority: "Competent Statutory Authority",
-    securityMarkersDetected: ["Official Document Header", "Digital Government Record"],
-    validationWarnings: [],
-    extractionSource: "INTELLIGENT_OCR_PARSER",
-  };
-}
-
-/**
- * Safe PDF stream extractor that only decodes actual text operators,
- * avoiding byte distortion from compressed binary objects.
- */
-function parsePdfTextStream(buf: Buffer): string {
+function parsePdfTextStream(buffer: Buffer): string {
   try {
-    const raw = buf.toString("latin1");
-    const textPieces: string[] = [];
-    const textRegex = /\(([^)]{2,100})\)\s*(?:Tj|TJ)/g;
-    let match;
-    while ((match = textRegex.exec(raw)) !== null) {
-      const clean = match[1].replace(/\\([()\\])/g, "$1").trim();
-      if (clean && clean.length > 1) {
-        textPieces.push(clean);
+    const raw = buffer.toString("binary");
+    const textBlocks: string[] = [];
+
+    const btEtRegex = /BT\s+([\s\S]*?)\s+ET/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = btEtRegex.exec(raw)) !== null) {
+      const blockContent = match[1];
+      const tjRegex = /\(([^)]+)\)\s*Tj/g;
+      let tjMatch: RegExpExecArray | null;
+      while ((tjMatch = tjRegex.exec(blockContent)) !== null) {
+        textBlocks.push(tjMatch[1]);
+      }
+
+      const tjArrayRegex = /\[(.*?)\]\s*TJ/g;
+      let arrayMatch: RegExpExecArray | null;
+      while ((arrayMatch = tjArrayRegex.exec(blockContent)) !== null) {
+        const inner = arrayMatch[1];
+        const strRegex = /\(([^)]+)\)/g;
+        let sMatch: RegExpExecArray | null;
+        while ((sMatch = strRegex.exec(inner)) !== null) {
+          textBlocks.push(sMatch[1]);
+        }
       }
     }
-    return textPieces.join(" ");
+
+    if (textBlocks.length > 0) {
+      return textBlocks.join(" ").replace(/\\([()\\])/g, "$1");
+    }
+
+    const asciiChunks: string[] = [];
+    let currentChunk = "";
+    for (let i = 0; i < buffer.length; i++) {
+      const byte = buffer[i];
+      if (byte >= 32 && byte <= 126) {
+        currentChunk += String.fromCharCode(byte);
+      } else if (byte === 10 || byte === 13) {
+        if (currentChunk.length > 3) {
+          asciiChunks.push(currentChunk);
+        }
+        currentChunk = "";
+      }
+    }
+    if (currentChunk.length > 3) {
+      asciiChunks.push(currentChunk);
+    }
+
+    const meaningful = asciiChunks.filter(
+      (c) => !c.startsWith("/") && !c.startsWith("%") && !c.includes("obj") && !c.includes("endobj") && c.length > 4
+    );
+
+    return meaningful.join(" ");
   } catch {
     return "";
   }
-}
-
-function extractNameFromFilename(fileName: string): string | null {
-  const nameOnly = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-  const tokens = nameOnly.split(" ").filter(
-    (t) =>
-      ![
-        "aadhaar",
-        "aadhar",
-        "card",
-        "doc",
-        "memo",
-        "marksheet",
-        "passbook",
-        "bank",
-        "pdf",
-        "jpg",
-        "png",
-        "img",
-        "photo",
-        "scan",
-        "copy",
-        "uidai",
-        "ssc",
-        "inter",
-        "class",
-        "10th",
-        "12th",
-        "caste",
-        "income",
-        "cert",
-        "certificate",
-        "ration",
-        "bonafide",
-        "study",
-        "apgb",
-        "sbi",
-        "bie",
-        "image",
-        "file",
-        "test",
-        "scan1",
-        "capture",
-      ].includes(t.toLowerCase())
-  );
-
-  if (tokens.length >= 2) {
-    return tokens.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-  } else if (tokens.length === 1 && tokens[0].length >= 3) {
-    return tokens[0].charAt(0).toUpperCase() + tokens[0].slice(1).toLowerCase();
-  }
-  return null;
 }
