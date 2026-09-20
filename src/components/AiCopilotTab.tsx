@@ -45,7 +45,16 @@ function renderInlineMarkdown(line: string, isUser: boolean) {
 
   while ((match = tokenRegex.exec(line)) !== null) {
     if (match.index > lastIndex) {
-      elements.push(line.slice(lastIndex, match.index));
+      const plainText = line.slice(lastIndex, match.index);
+      elements.push(
+        isUser ? (
+          <span key={`text-${lastIndex}`} style={{ color: "#FFFFFF" }}>
+            {plainText}
+          </span>
+        ) : (
+          plainText
+        )
+      );
     }
     const token = match[0];
     const key = `${match.index}-${token}`;
@@ -56,11 +65,8 @@ function renderInlineMarkdown(line: string, isUser: boolean) {
       elements.push(
         <strong
           key={key}
-          className={
-            isUser
-              ? "font-extrabold text-[#F5E29F]"
-              : "font-extrabold text-[#0B1B4F] tracking-tight"
-          }
+          style={{ color: isUser ? "#F5E29F" : "#0B1B4F" }}
+          className="font-extrabold tracking-tight"
         >
           {innerText}
         </strong>
@@ -90,38 +96,52 @@ function renderInlineMarkdown(line: string, isUser: boolean) {
             href={linkMatch[2]}
             target="_blank"
             rel="noopener noreferrer"
-            className={
-              isUser
-                ? "underline font-bold text-[#F5E29F] hover:text-white"
-                : "underline font-bold text-[#854D0E] hover:text-[#0B1B4F]"
-            }
+            style={{ color: isUser ? "#F5E29F" : "#854D0E" }}
+            className="underline font-bold hover:underline"
           >
             {linkMatch[1]}
           </a>
         );
       } else {
-        elements.push(token);
+        elements.push(
+          isUser ? <span key={`tok-${key}`} style={{ color: "#FFFFFF" }}>{token}</span> : token
+        );
       }
     } else if (token.startsWith("*") && token.endsWith("*") && token.length >= 2) {
       // Italic: Strip asterisks and render italic
       const innerText = token.slice(1, -1);
       elements.push(
-        <em key={key} className="italic opacity-90">
+        <em key={key} style={{ color: isUser ? "#FFFFFF" : undefined }} className="italic opacity-90">
           {innerText}
         </em>
       );
     } else {
-      elements.push(token);
+      elements.push(
+        isUser ? <span key={`tok-${key}`} style={{ color: "#FFFFFF" }}>{token}</span> : token
+      );
     }
 
     lastIndex = tokenRegex.lastIndex;
   }
 
   if (lastIndex < line.length) {
-    elements.push(line.slice(lastIndex));
+    const trailingText = line.slice(lastIndex);
+    elements.push(
+      isUser ? (
+        <span key="trailing" style={{ color: "#FFFFFF" }}>
+          {trailingText}
+        </span>
+      ) : (
+        trailingText
+      )
+    );
   }
 
-  return elements.length > 0 ? elements : line;
+  if (elements.length === 0) {
+    return isUser ? <span style={{ color: "#FFFFFF" }}>{line}</span> : line;
+  }
+
+  return elements;
 }
 
 type MarkdownBlock =
@@ -319,10 +339,11 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
               return (
                 <ol
                   key={idx}
+                  style={{ color: isUser ? "#FFFFFF" : "#1E293B" }}
                   className={`my-1.5 space-y-1 pl-5 list-decimal ${isUser ? "text-white" : "text-slate-800"}`}
                 >
                   {block.items.map((item, itemIdx) => (
-                    <li key={itemIdx} className="leading-relaxed">
+                    <li key={itemIdx} style={{ color: isUser ? "#FFFFFF" : "#1E293B" }} className="leading-relaxed">
                       {renderInlineMarkdown(item, isUser)}
                     </li>
                   ))}
@@ -332,12 +353,13 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
             return (
               <ul
                 key={idx}
+                style={{ color: isUser ? "#FFFFFF" : "#1E293B" }}
                 className={`my-1.5 space-y-1 pl-4 list-disc ${
                   isUser ? "text-white marker:text-[#F5E29F]" : "text-slate-800 marker:text-[#854D0E]"
                 }`}
               >
                 {block.items.map((item, itemIdx) => (
-                  <li key={itemIdx} className="leading-relaxed">
+                  <li key={itemIdx} style={{ color: isUser ? "#FFFFFF" : "#1E293B" }} className="leading-relaxed">
                     {renderInlineMarkdown(item, isUser)}
                   </li>
                 ))}
@@ -349,6 +371,7 @@ function FormattedMessageContent({ content, isUser }: { content: string; isUser:
             return (
               <div
                 key={idx}
+                style={{ color: isUser ? "#FFFFFF" : "#1E293B" }}
                 className={`leading-relaxed ${isUser ? "text-white font-medium" : "text-slate-800"}`}
               >
                 {renderInlineMarkdown(block.text, isUser)}
@@ -1125,10 +1148,15 @@ Ask me anything! Here are popular queries:
               )}
 
               <div
+                style={
+                  m.role === "user"
+                    ? { backgroundColor: "#0B1B4F", color: "#FFFFFF" }
+                    : { backgroundColor: "#FAF7F2", color: "#1E293B" }
+                }
                 className={`rounded-2xl p-4 max-w-[85%] text-xs sm:text-sm leading-relaxed ${
                   m.role === "user"
-                    ? "bg-[#0B1B4F] text-white shadow-xs"
-                    : "bg-[#FAF7F2] text-slate-800 border border-[#EDE6DD]"
+                    ? "text-white shadow-xs border border-[#142A6F]"
+                    : "text-slate-800 border border-[#EDE6DD]"
                 }`}
               >
                 <FormattedMessageContent content={m.content} isUser={m.role === "user"} />
