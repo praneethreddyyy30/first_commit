@@ -370,6 +370,9 @@ export const DocumentAuditTab: React.FC<DocumentAuditTabProps> = ({
               if (res.extractedDob) updated.dobOnMarksheet = res.extractedDob;
             } else if (expected === "caste") {
               updated.nameOnCasteCertificate = res.extractedName;
+            } else if (expected === "income" || expected === "ration_card") {
+              updated.nameOnIncomeCertificate = res.extractedName;
+              if (res.extractedDob) updated.incomeCertificateIssueDate = res.extractedDob;
             } else if (expected === "bank") {
               if (res.issuingAuthority) updated.bankName = res.issuingAuthority;
             }

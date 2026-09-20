@@ -2,6 +2,7 @@ export interface DocumentAuditInput {
   nameOnAadhaar: string;
   nameOnMarksheet: string;
   nameOnCasteCertificate?: string;
+  nameOnIncomeCertificate?: string;
   dobOnAadhaar?: string;
   dobOnMarksheet?: string;
   incomeCertificateIssueDate?: string;
@@ -237,7 +238,28 @@ export function auditCitizenDocuments(input: DocumentAuditInput): DocumentAuditR
     resolutionChecklist.push("Link bank account with Aadhaar and enable DBT mandate.");
   }
 
-  // 4. Income Certificate Expiry / Date Check
+  // 4. Income Certificate Expiry / Date Check & Name Consistency
+  if (input.nameOnIncomeCertificate) {
+    const incomeNameSim = calculateSimilarity(input.nameOnAadhaar, input.nameOnIncomeCertificate);
+    if (incomeNameSim >= 75) {
+      issues.push({
+        severity: "RESOLVED",
+        title: `Income / Rice Card Identity Match (${incomeNameSim}%)`,
+        description: `Applicant name on Income / Rice Card matches Aadhaar records ("${input.nameOnIncomeCertificate}").`,
+        solution: "No action required.",
+        statutoryReference: "Revenue Department & Civil Supplies Validated"
+      });
+    } else {
+      issues.push({
+        severity: "WARNING",
+        title: `Income / Rice Card Name Variation (${incomeNameSim}%)`,
+        description: `Income / Rice Card says "${input.nameOnIncomeCertificate}" while Aadhaar says "${input.nameOnAadhaar}". Ensure the applicant is listed as a primary beneficiary or family member on the certificate.`,
+        solution: "Carry Family Household / Ration card copy or Meeseva certificate during physical document verification.",
+        statutoryReference: "State Welfare Board Rules"
+      });
+    }
+  }
+
   if (input.incomeCertificateIssueDate) {
     const issueDate = new Date(input.incomeCertificateIssueDate);
     const currentFiscalYearStart = new Date("2026-04-01");
