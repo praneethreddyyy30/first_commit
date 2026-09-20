@@ -6,7 +6,7 @@ frontend:
         - npm ci
     build:
       commands:
-        - env | grep -E '^(AWS_|GROQ_|DYNAMODB_|S3_|GEMINI_)' >> .env.production || true
+        - env | grep -E '^(APP_AWS_|AWS_|GROQ_|DYNAMODB_|S3_|GEMINI_|BEDROCK_)' >> .env.production || true
         - npm run build
   artifacts:
     baseDirectory: .next

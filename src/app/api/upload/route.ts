@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-const region = process.env.AWS_REGION || "us-east-1";
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const region = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
+const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+const sessionToken = process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
 const bucketName = process.env.S3_BUCKET_NAME || "jansetu-citizen-dossiers";
 
 function isS3Configured(): boolean {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
         credentials: {
           accessKeyId: accessKeyId!.trim(),
           secretAccessKey: secretAccessKey!.trim(),
-          ...(process.env.AWS_SESSION_TOKEN ? { sessionToken: process.env.AWS_SESSION_TOKEN.trim() } : {}),
+          ...(sessionToken ? { sessionToken: sessionToken.trim() } : {}),
         },
       });
 

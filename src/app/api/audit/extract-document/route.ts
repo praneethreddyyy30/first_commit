@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 
-const region = process.env.AWS_REGION || "us-east-1";
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const region = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
+const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
 
 function isBedrockConfigured(): boolean {
   return Boolean(
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     const effectiveRegion = customCredentials?.region || region;
     const effectiveAccessKey = customCredentials?.accessKeyId || accessKeyId;
     const effectiveSecretKey = customCredentials?.secretAccessKey || secretAccessKey;
-    const effectiveSessionToken = customCredentials?.sessionToken || process.env.AWS_SESSION_TOKEN;
+    const effectiveSessionToken = customCredentials?.sessionToken || process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
 
     const hasBedrockConfigured = Boolean(
       effectiveAccessKey &&
@@ -169,7 +169,7 @@ Return STRICTLY a JSON object with:
           }
 
           const candidateModels = [
-            process.env.AWS_BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
+            process.env.APP_AWS_BEDROCK_MODEL_ID || process.env.BEDROCK_MODEL_ID || process.env.AWS_BEDROCK_MODEL_ID || "amazon.nova-lite-v1:0",
             "us.amazon.nova-lite-v1:0",
             "amazon.nova-pro-v1:0",
             "anthropic.claude-3-haiku-20240307-v1:0",

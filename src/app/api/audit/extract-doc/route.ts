@@ -138,10 +138,10 @@ export async function POST(req: NextRequest) {
     const buffer = Buffer.from(await file.arrayBuffer());
 
     // ─── ENGINE A: AMAZON BEDROCK MULTIMODAL OCR (CLAUDE 3.5 SONNET) ───
-    const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-    const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-    const sessionToken = process.env.AWS_SESSION_TOKEN;
-    const awsRegion = process.env.AWS_REGION || "us-east-1";
+    const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+    const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+    const sessionToken = process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
+    const awsRegion = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
     const isLiveAws = accessKeyId && secretAccessKey && !accessKeyId.includes("your-access-key") && accessKeyId.trim().length > 10;
 
     if (isLiveAws) {
@@ -205,7 +205,7 @@ Return strictly a valid JSON object with no markdown backticks or commentary:
         };
 
         const command = new InvokeModelCommand({
-          modelId: process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0",
+          modelId: process.env.APP_AWS_BEDROCK_MODEL_ID || process.env.BEDROCK_MODEL_ID || process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0",
           contentType: "application/json",
           accept: "application/json",
           body: JSON.stringify(payload)

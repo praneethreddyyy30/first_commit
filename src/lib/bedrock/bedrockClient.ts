@@ -143,11 +143,11 @@ export async function askJanSetuCopilot(
   customCredentials?: AwsCredentials,
   context?: CopilotContext
 ): Promise<BedrockResponse> {
-  const awsRegion = customCredentials?.region || process.env.AWS_REGION || "us-east-1";
-  const accessKeyId = customCredentials?.accessKeyId || process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = customCredentials?.secretAccessKey || process.env.AWS_SECRET_ACCESS_KEY;
-  const sessionToken = customCredentials?.sessionToken || process.env.AWS_SESSION_TOKEN;
-  const modelId = process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0";
+  const awsRegion = customCredentials?.region || process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
+  const accessKeyId = customCredentials?.accessKeyId || process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = customCredentials?.secretAccessKey || process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = customCredentials?.sessionToken || process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
+  const modelId = process.env.APP_AWS_BEDROCK_MODEL_ID || process.env.BEDROCK_MODEL_ID || process.env.AWS_BEDROCK_MODEL_ID || "anthropic.claude-3-5-sonnet-20241022-v2:0";
 
   // Resolve user profile & policy evaluation context
   const effectiveProfile: UserProfile = context?.profile || DEMO_PERSONAS[0].profile;

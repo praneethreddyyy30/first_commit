@@ -7,9 +7,10 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import { SchemeOrService, SCHEMES_DATABASE } from "@/data/schemes";
 
-const region = process.env.AWS_REGION || "us-east-1";
-const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+const region = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
+const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+const sessionToken = process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
 const endpoint = process.env.AWS_ENDPOINT_URL || process.env.DYNAMODB_ENDPOINT;
 
 export const SCHEMES_TABLE = process.env.DYNAMODB_SCHEMES_TABLE || "JanSetuSchemes";
@@ -33,7 +34,7 @@ const rawClient = new DynamoDBClient({
         credentials: {
           accessKeyId: accessKeyId!.trim(),
           secretAccessKey: secretAccessKey!.trim(),
-          ...(process.env.AWS_SESSION_TOKEN ? { sessionToken: process.env.AWS_SESSION_TOKEN.trim() } : {}),
+          ...(sessionToken ? { sessionToken: sessionToken.trim() } : {}),
         },
       }
     : {}),

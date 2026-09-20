@@ -16,8 +16,8 @@ export interface DynamoSchemeStoreResult {
   tableName: string;
 }
 
-const TABLE_NAME = process.env.SCHEMES_TABLE || "JanSetuSchemes";
-const AWS_REGION = process.env.AWS_REGION || "us-east-1";
+const TABLE_NAME = process.env.DYNAMODB_SCHEMES_TABLE || process.env.SCHEMES_TABLE || "JanSetuSchemes";
+const AWS_REGION = process.env.APP_AWS_REGION || process.env.AWS_REGION || "us-east-1";
 
 // In-memory fallback and seed cache
 class LocalSchemeCache {
@@ -56,9 +56,9 @@ class LocalSchemeCache {
 const localCache = new LocalSchemeCache();
 
 function getDynamoDocClient(): DynamoDBDocumentClient | null {
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
-  const sessionToken = process.env.AWS_SESSION_TOKEN;
+  const accessKeyId = process.env.APP_AWS_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.APP_AWS_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY;
+  const sessionToken = process.env.APP_AWS_SESSION_TOKEN || process.env.AWS_SESSION_TOKEN;
 
   if (
     !accessKeyId ||
