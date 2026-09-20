@@ -5,7 +5,7 @@ import {
   PutCommand,
   GetCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { SchemeOrService } from "@/data/schemes";
+import { SchemeOrService, SCHEMES_DATABASE } from "@/data/schemes";
 
 const region = process.env.AWS_REGION || "us-east-1";
 const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
@@ -57,7 +57,32 @@ export async function getSchemesFromDynamoDB(): Promise<SchemeOrService[] | null
     const cmd = new ScanCommand({ TableName: SCHEMES_TABLE });
     const res = await dynamoDocClient.send(cmd);
     if (res.Items && res.Items.length > 0) {
-      return res.Items as SchemeOrService[];
+      const rawItems = res.Items as Partial<SchemeOrService>[];
+      const enriched: SchemeOrService[] = rawItems
+        .map((item) => {
+          const baseline = SCHEMES_DATABASE.find((b) => b.id === item.id);
+          if (!baseline) return item as SchemeOrService;
+          return {
+            ...baseline,
+            ...item,
+            title: item.title && item.title.trim() ? item.title : baseline.title,
+            shortCode: item.shortCode && item.shortCode.trim() ? item.shortCode : baseline.shortCode,
+            benefitAmount: item.benefitAmount && item.benefitAmount.trim() ? item.benefitAmount : baseline.benefitAmount,
+            benefitDescription: item.benefitDescription && item.benefitDescription.trim() ? item.benefitDescription : baseline.benefitDescription,
+            ministry: item.ministry && item.ministry.trim() ? item.ministry : baseline.ministry,
+            level: item.level || baseline.level,
+            deadline: item.deadline || baseline.deadline,
+            daysRemaining: typeof item.daysRemaining === "number" ? item.daysRemaining : baseline.daysRemaining,
+            targetCategories: Array.isArray(item.targetCategories) && item.targetCategories.length > 0 ? item.targetCategories : baseline.targetCategories,
+            maxIncome: typeof item.maxIncome === "number" ? item.maxIncome : baseline.maxIncome,
+            educationStages: Array.isArray(item.educationStages) && item.educationStages.length > 0 ? item.educationStages : baseline.educationStages,
+            courseTypesAllowed: Array.isArray(item.courseTypesAllowed) && item.courseTypesAllowed.length > 0 ? item.courseTypesAllowed : baseline.courseTypesAllowed,
+            mandatoryDocuments: Array.isArray(item.mandatoryDocuments) && item.mandatoryDocuments.length > 0 ? item.mandatoryDocuments : baseline.mandatoryDocuments,
+            prerequisites: Array.isArray(item.prerequisites) && item.prerequisites.length > 0 ? item.prerequisites : baseline.prerequisites,
+          };
+        })
+        .filter((s) => s.title && s.title.trim().length > 0);
+      return enriched.length > 0 ? enriched : SCHEMES_DATABASE;
     }
     return null;
   } catch (err) {

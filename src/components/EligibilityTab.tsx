@@ -87,9 +87,13 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
   const isTamilNadu = profile.state === "Tamil Nadu";
   const isAndhraPradesh = profile.state === "Andhra Pradesh";
 
-  // Split results into Eligible vs Not Eligible
-  const eligibleResults = evaluationResults.filter((r) => r.decision === "ALLOW");
-  const ineligibleResults = evaluationResults.filter((r) => r.decision !== "ALLOW");
+  // Split results into Eligible vs Not Eligible, ensuring only complete, valid schemes with titles are shown
+  const validEvaluationResults = evaluationResults.filter(
+    (r) => r && r.scheme && typeof r.scheme.title === "string" && r.scheme.title.trim().length > 0
+  );
+
+  const eligibleResults = validEvaluationResults.filter((r) => r.decision === "ALLOW");
+  const ineligibleResults = validEvaluationResults.filter((r) => r.decision !== "ALLOW");
 
   const activeClassificationResults =
     eligibilityTab === "ELIGIBLE" ? eligibleResults : ineligibleResults;
@@ -99,10 +103,10 @@ export const EligibilityTab: React.FC<EligibilityTabProps> = ({
     // Search query filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      const matchTitle = r.scheme.title.toLowerCase().includes(q);
-      const matchCode = r.scheme.shortCode.toLowerCase().includes(q);
-      const matchMinistry = r.scheme.ministry.toLowerCase().includes(q);
-      const matchBenefit = r.scheme.benefitAmount.toLowerCase().includes(q);
+      const matchTitle = (r.scheme.title || "").toLowerCase().includes(q);
+      const matchCode = (r.scheme.shortCode || "").toLowerCase().includes(q);
+      const matchMinistry = (r.scheme.ministry || "").toLowerCase().includes(q);
+      const matchBenefit = (r.scheme.benefitAmount || "").toLowerCase().includes(q);
       if (!matchTitle && !matchCode && !matchMinistry && !matchBenefit) {
         return false;
       }

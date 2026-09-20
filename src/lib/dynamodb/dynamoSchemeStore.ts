@@ -104,7 +104,35 @@ export async function fetchAllSchemesFromCloud(stateFilter?: string): Promise<Dy
       });
 
       const response = await docClient.send(command);
-      const items = (response.Items as SchemeOrService[]) || [];
+      const rawItems = (response.Items as Partial<SchemeOrService>[]) || [];
+
+      // Enrich items with baseline catalog to ensure complete metadata (title, benefits, deadlines)
+      const items: SchemeOrService[] = rawItems
+        .map((item) => {
+          const baseline = SCHEMES_DATABASE.find((b) => b.id === item.id);
+          if (!baseline) {
+            return item as SchemeOrService;
+          }
+          return {
+            ...baseline,
+            ...item,
+            title: item.title && item.title.trim() ? item.title : baseline.title,
+            shortCode: item.shortCode && item.shortCode.trim() ? item.shortCode : baseline.shortCode,
+            benefitAmount: item.benefitAmount && item.benefitAmount.trim() ? item.benefitAmount : baseline.benefitAmount,
+            benefitDescription: item.benefitDescription && item.benefitDescription.trim() ? item.benefitDescription : baseline.benefitDescription,
+            ministry: item.ministry && item.ministry.trim() ? item.ministry : baseline.ministry,
+            level: item.level || baseline.level,
+            deadline: item.deadline || baseline.deadline,
+            daysRemaining: typeof item.daysRemaining === "number" ? item.daysRemaining : baseline.daysRemaining,
+            targetCategories: Array.isArray(item.targetCategories) && item.targetCategories.length > 0 ? item.targetCategories : baseline.targetCategories,
+            maxIncome: typeof item.maxIncome === "number" ? item.maxIncome : baseline.maxIncome,
+            educationStages: Array.isArray(item.educationStages) && item.educationStages.length > 0 ? item.educationStages : baseline.educationStages,
+            courseTypesAllowed: Array.isArray(item.courseTypesAllowed) && item.courseTypesAllowed.length > 0 ? item.courseTypesAllowed : baseline.courseTypesAllowed,
+            mandatoryDocuments: Array.isArray(item.mandatoryDocuments) && item.mandatoryDocuments.length > 0 ? item.mandatoryDocuments : baseline.mandatoryDocuments,
+            prerequisites: Array.isArray(item.prerequisites) && item.prerequisites.length > 0 ? item.prerequisites : baseline.prerequisites,
+          };
+        })
+        .filter((s) => s.title && s.title.trim().length > 0);
 
       if (items.length > 0) {
         // Also update local cache
@@ -135,7 +163,7 @@ export async function fetchAllSchemesFromCloud(stateFilter?: string): Promise<Dy
   }
 
   // Resilient fallback (local verified catalog + dynamically ingested schemes)
-  const allCached = localCache.getAll();
+  const allCached = localCache.getAll().filter((s) => s.title && s.title.trim().length > 0);
   let filtered = allCached;
   if (stateFilter && stateFilter !== "All" && stateFilter !== "National") {
     filtered = allCached.filter(
