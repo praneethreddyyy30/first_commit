@@ -124,30 +124,205 @@ function renderInlineMarkdown(line: string, isUser: boolean) {
   return elements.length > 0 ? elements : line;
 }
 
-function FormattedMessageContent({ content, isUser }: { content: string; isUser: boolean }) {
+type MarkdownBlock =
+  | { type: "heading"; level: number; text: string }
+  | { type: "table"; headers: string[]; rows: string[][] }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "blockquote"; text: string }
+  | { type: "hr" }
+  | { type: "paragraph"; text: string };
+
+function parseMarkdownBlocks(content: string): MarkdownBlock[] {
   const lines = content.split("\n");
+  const blocks: MarkdownBlock[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    // Horizontal Rule
+    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+      blocks.push({ type: "hr" });
+      i++;
+      continue;
+    }
+
+    // Headings: #, ##, ###, ####
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      blocks.push({ type: "heading", level: headingMatch[1].length, text: headingMatch[2] });
+      i++;
+      continue;
+    }
+
+    // Blockquote: >
+    if (trimmed.startsWith(">")) {
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith(">")) {
+        quoteLines.push(lines[i].trim().replace(/^>\s*/, ""));
+        i++;
+      }
+      blocks.push({ type: "blockquote", text: quoteLines.join(" ") });
+      continue;
+    }
+
+    // Table: lines starting and ending with |
+    if (trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.includes("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|") && lines[i].trim().endsWith("|")) {
+        tableLines.push(lines[i].trim());
+        i++;
+      }
+      if (tableLines.length >= 2) {
+        const splitRow = (row: string) => row.split("|").slice(1, -1).map((c) => c.trim());
+        const headers = splitRow(tableLines[0]);
+        const isSeparator = (r: string) => /^[:\s-]+$/.test(r.replace(/\|/g, ""));
+        const dataLines = tableLines.slice(1).filter((r) => !isSeparator(r));
+        const rows = dataLines.map(splitRow);
+        blocks.push({ type: "table", headers, rows });
+        continue;
+      }
+    }
+
+    // Bullet List: -, *, •
+    if (/^[-*•]\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[-*•]\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^[-*•]\s+/, ""));
+        i++;
+      }
+      blocks.push({ type: "list", ordered: false, items });
+      continue;
+    }
+
+    // Numbered List: 1. , 2.
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i].trim())) {
+        items.push(lines[i].trim().replace(/^\d+\.\s+/, ""));
+        i++;
+      }
+      blocks.push({ type: "list", ordered: true, items });
+      continue;
+    }
+
+    // Regular paragraph
+    blocks.push({ type: "paragraph", text: line });
+    i++;
+  }
+
+  return blocks;
+}
+
+function FormattedMessageContent({ content, isUser }: { content: string; isUser: boolean }) {
+  const blocks = parseMarkdownBlocks(content);
 
   return (
-    <div className="space-y-1.5 text-xs sm:text-sm leading-relaxed">
-      {lines.map((line, lineIdx) => {
-        if (!line.trim()) {
-          return <div key={lineIdx} className="h-1.5" />;
+    <div className="space-y-2 text-xs sm:text-sm leading-relaxed">
+      {blocks.map((block, idx) => {
+        switch (block.type) {
+          case "hr":
+            return <hr key={idx} className="my-2 border-t border-[#EDE6DD]" />;
+
+          case "heading": {
+            const isTopLevel = block.level <= 2;
+            return (
+              <div
+                key={idx}
+                className={
+                  isTopLevel
+                    ? "font-serif font-black text-sm sm:text-base text-[#0B1B4F] mt-2 mb-1"
+                    : "font-bold text-xs sm:text-sm text-[#0B1B4F] mt-1.5 mb-0.5"
+                }
+              >
+                {renderInlineMarkdown(block.text, isUser)}
+              </div>
+            );
+          }
+
+          case "blockquote":
+            return (
+              <div
+                key={idx}
+                className="my-2 rounded-r-lg border-l-4 border-[#DFB738] bg-[#FAF7F2] py-2 px-3 text-xs italic text-slate-700 shadow-xs"
+              >
+                {renderInlineMarkdown(block.text, isUser)}
+              </div>
+            );
+
+          case "table":
+            return (
+              <div
+                key={idx}
+                className="my-2 overflow-x-auto rounded-xl border border-[#EDE6DD] bg-white shadow-xs max-w-full"
+              >
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[#EDE6DD] bg-[#FAF7F2]">
+                      {block.headers.map((h, hIdx) => (
+                        <th
+                          key={hIdx}
+                          className="py-2 px-3 font-bold text-[#0B1B4F] whitespace-nowrap"
+                        >
+                          {renderInlineMarkdown(h, isUser)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rIdx) => (
+                      <tr
+                        key={rIdx}
+                        className="border-b border-[#F5EFE6] last:border-0 hover:bg-[#FAF7F2]/60 transition-colors"
+                      >
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} className="py-2 px-3 text-slate-700 align-top">
+                            {renderInlineMarkdown(cell, isUser)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+
+          case "list":
+            if (block.ordered) {
+              return (
+                <ol key={idx} className="my-1.5 space-y-1 pl-5 list-decimal text-slate-800">
+                  {block.items.map((item, itemIdx) => (
+                    <li key={itemIdx} className="leading-relaxed">
+                      {renderInlineMarkdown(item, isUser)}
+                    </li>
+                  ))}
+                </ol>
+              );
+            }
+            return (
+              <ul key={idx} className="my-1.5 space-y-1 pl-4 list-disc text-slate-800 marker:text-[#854D0E]">
+                {block.items.map((item, itemIdx) => (
+                  <li key={itemIdx} className="leading-relaxed">
+                    {renderInlineMarkdown(item, isUser)}
+                  </li>
+                ))}
+              </ul>
+            );
+
+          case "paragraph":
+          default:
+            return (
+              <div key={idx} className="leading-relaxed text-slate-800">
+                {renderInlineMarkdown(block.text, isUser)}
+              </div>
+            );
         }
-
-        const isIndented = line.startsWith("  ↳") || line.startsWith("  •") || line.startsWith("    ");
-        const trimmed = line.trim();
-        const isNumberedHeader = /^\*\*\d+\./.test(trimmed) || /^\d+\./.test(trimmed);
-
-        return (
-          <div
-            key={lineIdx}
-            className={`${isIndented ? "pl-4 text-slate-700" : ""} ${
-              isNumberedHeader ? "mt-1 font-medium" : ""
-            }`}
-          >
-            {renderInlineMarkdown(line, isUser)}
-          </div>
-        );
       })}
     </div>
   );

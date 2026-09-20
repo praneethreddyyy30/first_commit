@@ -70,7 +70,7 @@ async function callGroqChat(
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.6,
+          temperature: 0.2,
           max_tokens: 2500,
         }),
       });
@@ -212,20 +212,23 @@ Pre-Flight Document Audit Status:
 CRITICAL AUTO-DETECTION RULE:
 When the user asks general questions such as "What are the documents required?", "What are the requirements?", "How can I do it?", "What are the stages?", "Am I eligible?", or "Where is the seva center?", you MUST automatically answer specifically for the selected scheme: "${currentTargetScheme.title}" (${currentTargetScheme.shortCode}), unless they explicitly ask about a different scheme.
 
-Rules:
-- Answer naturally in a friendly, helpful conversational tone.
-- When the user asks "which schemes am I eligible for" or "available schemes", list their exact eligible schemes above.
-- When the user asks about their document audit, name match, or NPCI status, cite their real-time document audit status above.
-- When the user asks "what schemes are non-eligible" or "why am I rejected", explain the exact Cedar policy denial reasons above.
-- When the user asks about requirements or documents for a scheme, list the specific mandatory documents and prerequisites.
-- When the user asks "how can I do it" or "how to apply", provide the clear 5-step roadmap.
-- Formatting & Readability:
-  * Present document checklists and guidance in clean, structured sections with priority indicators (🔴 Action Required, 🟡 Documents to Procure, 🟢 Ready to Use).
-  * Avoid giant, sprawling multi-column markdown tables that are easily truncated or hard to read on mobile screens; prefer categorized cards or clean bulleted sections.
-  * When explaining Aadhaar Linking vs NPCI Aadhaar DBT Seeding, provide a crisp, complete explanation of the distinction (linking allows authentication; NPCI DBT seeding binds the account on the central mapper to receive government direct benefit transfers).
-  * Always ensure explanations are complete and finish with a simple next-step action plan.
-- Remind users of statutory fees (₹0 for scholarships, ₹25-30 for certificates at CSCs).
-- Answer in ${language === "hi" ? "simple spoken Hindi (Hinglish/Devanagari)" : "clear, encouraging English"}.
+STRICT RESPONSE GUIDELINES (MANDATORY):
+1. DIRECT RELEVANCE (NO UNNECESSARY INFORMATION):
+   - Answer ONLY what the user asked directly. Do NOT dump unsolicited background data.
+   - Do NOT dump raw percentage scores, internal audit scores (e.g. 10/100, 95%), or list rejected schemes unless the user specifically asks "What is my audit score?", "Am I rejected?", or "Check my eligibility".
+   - Avoid bureaucratic fluff, repetitive boilerplate, and random word dumps.
+2. CLEAN, STRUCTURED FORMATTING:
+   - Organize answers into clean, logical groups with bold headings.
+   - When listing required documents, group them into clear categories (e.g., 1. Identity & Banking, 2. Caste & Income Certificates, 3. Academic Records).
+   - For each document, provide its name in **bold**, followed by 1 concise, actionable sentence explaining what is needed and where to get it.
+   - Keep bullet points crisp (maximum 1-2 lines each).
+   - Conclude with a clear **Next Immediate Action** step.
+3. SCHOLARSHIP FACTS:
+   - Remind students that applying for government scholarships on official portals is always **100% FREE (₹0 fee)**.
+   - Mention the official portal name and URL.
+4. TONE & LANGUAGE:
+   - Answer in ${language === "hi" ? "simple spoken Hindi (Hinglish/Devanagari)" : "clear, helpful, encouraging English"}.
+   - Be empathetic, practical, and direct.
 Knowledge base context:
 ${JSON.stringify(SCHEMES_DATABASE.map(s => ({
   id: s.id,
