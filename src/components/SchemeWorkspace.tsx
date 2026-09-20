@@ -415,6 +415,7 @@ export const SchemeWorkspace: React.FC<SchemeWorkspaceProps> = ({
             profile={profile}
             evaluationResults={evaluationResults}
             auditResult={auditResult}
+            targetSchemeId={activeScheme.id}
           />
         )}
       </div>

@@ -120,7 +120,17 @@ MANDATORY AUDIT & EXTRACTION INSTRUCTIONS:
        "❌ Not a Valid Document: The uploaded file does not match the required ${expectedTitle} format. Please upload an authentic, official ${expectedTitle} (such as an official government-issued ID card, marks memo, or bank passbook)."
      ]
 
-4. STRICT ANTI-HALLUCINATION RULE:
+4. STRICT REJECTION OF TECH, IT, AND CLOUDFLARE FILES:
+   - If the document is a technical certificate, quota receipt, SSL/TLS certificate, API key configuration, software screenshot, or online course certificate (e.g. Cloudflare, AWS, Coursera, Udemy, GitHub):
+     Set "isValidDocument": false
+     Set "detectedDocType": "unknown"
+     Set "confidenceScore": 0
+     Set "validationWarnings": [
+       "❌ Non-Statutory File: The uploaded file '${fileName}' appears to be a Cloudflare / IT quota certificate or technical file, not an official Indian Government statutory document or identity card. Please upload an authentic official ${expectedTitle}."
+     ]
+     NEVER extract company or tech words like "Cloudflare", "Quota", "Certificate" as citizen/applicant names!
+
+5. STRICT ANTI-HALLUCINATION RULE:
    NEVER claim or state that the file is a resume or CV unless the document text explicitly and unambiguously contains a personal job employment resume or CV. If the document is simply invalid, unrecognized, or a non-statutory image, inform the citizen that it is not a valid document for this slot and prompt them to upload the correct document.
 
 Return STRICTLY a JSON object with:
@@ -231,7 +241,12 @@ TASK:
 2. If it is an authentic document matching the expected slot "${expectedTitle}", set "isValidDocument": true and extract all fields.
 3. If it is NOT a valid document for this slot or is an unrelated photo/receipt, set "isValidDocument": false and provide a clear warning:
    ["❌ Not a Valid Document: The uploaded file does not match the required ${expectedTitle} format. Please upload an authentic, official ${expectedTitle}."]
-4. NEVER claim it is a resume or CV unless the document text explicitly contains an employment resume.
+4. STRICT REJECTION OF TECH, IT, AND CLOUDFLARE FILES:
+   If the document is a technical certificate, quota receipt, SSL/TLS certificate, API key configuration, or online course certificate (e.g. Cloudflare, AWS, Coursera, Udemy, GitHub):
+   Set "isValidDocument": false, "detectedDocType": "unknown", "confidenceScore": 0.
+   Warning: ["❌ Non-Statutory File: The uploaded file '${fileName}' appears to be a Cloudflare / IT quota certificate or technical file, not an official Indian Government statutory document or identity card. Please upload an authentic official ${expectedTitle}."]
+   NEVER extract tech words like "Cloudflare" or "Quota" as citizen names!
+5. NEVER claim it is a resume or CV unless the document text explicitly contains an employment resume.
 
 Return strictly a valid JSON object matching:
 {
@@ -350,10 +365,11 @@ AUDIT RULES:
 1. DOCUMENT CLASSIFICATION:
    - Does this text belong to an official Indian document matching "${expectedTitle}"?
    - If the text is an Income or Caste Certificate uploaded into an Aadhaar slot, set isValidDocument: false with validation warning explaining the mismatch.
-   - If the text is a resume, invoice, or unrelated text, set isValidDocument: false.
+   - If the text is a resume, invoice, Cloudflare quota, AWS receipt, or tech certificate, set isValidDocument: false with:
+     "❌ Non-Statutory File: The uploaded file '${fileName}' appears to be a Cloudflare / IT quota certificate or technical file, not an official Indian Government statutory document or identity card. Please upload an authentic official ${expectedTitle}."
    - If it matches the expected document type, set isValidDocument: true.
 2. EXTRACTION:
-   - Extract the real citizen name (e.g. "Sravani Reddy", "Kavitha Selvam"). If no name exists in text, set null.
+   - Extract the real citizen name (e.g. "Sravani Reddy", "Kavitha Selvam"). NEVER extract "Cloudflare", "Quota", or tech words as citizen names! If no name exists in text, set null.
    - Extract the document/certificate/ID number (e.g. Aadhaar 12-digit number, Marks roll number, Certificate number). If none, set null.
    - Extract the Date of Birth (YYYY-MM-DD format if available).
    - Extract the Issuing Authority (e.g. "UIDAI", "Tahsildar Revenue Dept", "State Board of Secondary Education").
@@ -534,6 +550,67 @@ function parseDocumentIntelligently(
     };
   }
 
+  // Explicit Cloudflare / Tech / Course / Non-Statutory File Detection
+  const filenameHasTechOrQuota =
+    cleanName.includes("cloudflare") ||
+    cleanName.includes("quota") ||
+    cleanName.includes("bandwidth") ||
+    cleanName.includes("api_key") ||
+    cleanName.includes("apikey") ||
+    cleanName.includes("aws") ||
+    cleanName.includes("amazon") ||
+    cleanName.includes("certified") ||
+    cleanName.includes("certification") ||
+    cleanName.includes("practitioner") ||
+    cleanName.includes("cloud") ||
+    cleanName.includes("azure") ||
+    cleanName.includes("google_cloud") ||
+    cleanName.includes("gcp") ||
+    cleanName.includes("coursera") ||
+    cleanName.includes("udemy") ||
+    cleanName.includes("edx") ||
+    cleanName.includes("simplilearn") ||
+    cleanName.includes("upgrad") ||
+    cleanName.includes("pluralsight") ||
+    cleanName.includes("cisco") ||
+    cleanName.includes("ccna") ||
+    cleanName.includes("ccnp") ||
+    cleanName.includes("comptia") ||
+    cleanName.includes("oracle") ||
+    cleanName.includes("github") ||
+    cleanName.includes("gitlab") ||
+    cleanName.includes("docker") ||
+    cleanName.includes("kubernetes") ||
+    cleanName.includes("k8s") ||
+    cleanName.includes("terraform") ||
+    cleanName.includes("devops") ||
+    cleanName.includes("hackerrank") ||
+    cleanName.includes("leetcode") ||
+    cleanName.includes("badge") ||
+    cleanName.includes("ssl_cert") ||
+    cleanName.includes("tls_cert") ||
+    cleanName.includes("course_cert") ||
+    cleanName.includes("completion_cert") ||
+    cleanName.includes("attendance_cert") ||
+    cleanName.includes("training_cert");
+
+  const textHasTechOrQuota =
+    extractedReadableText.length > 10 &&
+    /cloudflare|bandwidth\s*quota|api\s*usage|course\s*completion|completion\s*certificate|attendance\s*certificate|web\s*traffic|domain\s*name|amazon\s*web\s*services|certified\s*cloud\s*practitioner|solutions\s*architect|certified\s*associate|coursera|udemy|cisco\s*certified|comptia|red\s*hat\s*certified/i.test(extractedReadableText);
+
+  if (filenameHasTechOrQuota || textHasTechOrQuota) {
+    return {
+      isValidDocument: false,
+      detectedDocType: "unknown",
+      confidenceScore: 0,
+      securityMarkersDetected: [],
+      validationWarnings: [
+        `❌ Non-Statutory Certificate: The uploaded file '${fileName}' appears to be a technical IT certification, cloud provider credential, or online course completion file (such as AWS, Cloudflare, Coursera, or Udemy), not an official Indian Government statutory document or citizen identity card. Please upload an authentic official ${expectedTitle}.`,
+      ],
+      extractionSource: "INTELLIGENT_OCR_PARSER",
+    };
+  }
+
   // 3. STATUTORY DOCUMENT CLASSIFICATION & MARKER DETECTION
   const hasAadhaarMarkers =
     cleanName.includes("aadhaar") ||
@@ -578,7 +655,7 @@ function parseDocumentIntelligently(
     cleanName.includes("obc_cert") ||
     cleanName.includes("rev01") ||
     cleanName.includes("rev-01") ||
-    /caste\s*certificate|community\s*certificate/i.test(extractedReadableText);
+    /caste\s*certificate|community\s*certificate|scheduled\s*caste|scheduled\s*tribe/i.test(extractedReadableText);
 
   const hasIncomeMarkers =
     cleanName.includes("income") ||
@@ -629,42 +706,66 @@ function parseDocumentIntelligently(
     extractNameFromFilename(fileName) ||
     undefined;
 
-  // 4. CROSS-DOCUMENT MISMATCH CHECKING
+  // 4. CROSS-DOCUMENT MISMATCH CHECKING & AFFIRMATIVE SLOT VERIFICATION
 
   // SLOT: AADHAAR CARD
   if (normalizedExpected === "aadhaar" || normalizedExpected.includes("aadhaar") || normalizedExpected.includes("aadhar")) {
-    if (hasGenericCertMarkers && !hasAadhaarMarkers) {
+    if (!hasAadhaarMarkers) {
+      if (hasCasteMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "caste_cert",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Caste/Community Certificate ('${fileName}') into the Aadhaar Identity slot. Please upload your official UIDAI Aadhaar Card.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasIncomeMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "income_cert",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Income Certificate ('${fileName}') into the Aadhaar Identity slot. Please upload your official UIDAI Aadhaar Card.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasMarksheetMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "marksheet",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasBankMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "bank_passbook",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: hasCasteMarkers ? "caste_cert" : hasIncomeMarkers ? "income_cert" : "statutory_cert",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Certificate ('${fileName}') into the Aadhaar Identity slot. Please upload your official UIDAI Aadhaar Card.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasMarksheetMarkers && !hasAadhaarMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "marksheet",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasAadhaarMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Aadhaar Identity slot. Please upload your UIDAI Aadhaar Card.`,
+          `❌ Invalid Aadhaar Document: The uploaded file '${fileName}' does not contain recognized UIDAI Aadhaar card markers, national emblem header, or 12-digit UID pattern.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -673,7 +774,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "aadhaar",
-      confidenceScore: hasAadhaarMarkers ? 95 : 88,
+      confidenceScore: 95,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "aadhaar") || undefined,
       issuingAuthority: "Unique Identification Authority of India (UIDAI)",
@@ -689,26 +790,50 @@ function parseDocumentIntelligently(
 
   // SLOT: MARKSHEET / MEMO
   if (normalizedExpected === "marksheet" || normalizedExpected.includes("marks") || normalizedExpected.includes("memo") || normalizedExpected.includes("ssc")) {
-    if (hasAadhaarMarkers && !hasMarksheetMarkers) {
+    if (!hasMarksheetMarkers) {
+      if (hasAadhaarMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "aadhaar",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Marksheet slot. Please upload your 10th/12th Academic Marks Memo.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasBankMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "bank_passbook",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Marksheet slot. Please upload your Secondary School Marks Memo.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasCasteMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "caste_cert",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Community Certificate ('${fileName}') into the Marksheet slot. Please upload your Secondary School Marks Memo.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Marksheet slot. Please upload your 10th/12th Academic Marks Memo.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasMarksheetMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Marksheet slot. Please upload your Secondary School Marks Memo.`,
+          `❌ Invalid Marksheet: The uploaded file '${fileName}' does not contain recognized Secondary/Intermediate Board marks memo identifiers or grade matrix.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -717,7 +842,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "marksheet",
-      confidenceScore: hasMarksheetMarkers ? 94 : 88,
+      confidenceScore: 94,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "marksheet") || undefined,
       issuingAuthority: "State Board of Secondary / Intermediate Education",
@@ -732,26 +857,50 @@ function parseDocumentIntelligently(
 
   // SLOT: BANK PASSBOOK
   if (normalizedExpected === "bank" || normalizedExpected.includes("passbook") || normalizedExpected.includes("bank")) {
-    if (hasAadhaarMarkers && !hasBankMarkers) {
+    if (!hasBankMarkers) {
+      if (hasAadhaarMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "aadhaar",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook front page or statement.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasMarksheetMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "marksheet",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasCasteMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "caste_cert",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Community Certificate ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook front page or statement.`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasMarksheetMarkers && !hasBankMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "marksheet",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Bank Passbook slot. Please upload your Bank Passbook.`,
+          `❌ Invalid Bank Document: The uploaded file '${fileName}' does not contain official Bank Passbook or IFSC account details.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -760,7 +909,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "bank_passbook",
-      confidenceScore: hasBankMarkers ? 94 : 88,
+      confidenceScore: 94,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "bank") || undefined,
       issuingAuthority: "Public Sector / Scheduled Commercial Bank",
@@ -775,26 +924,62 @@ function parseDocumentIntelligently(
 
   // SLOT: CASTE / COMMUNITY CERTIFICATE
   if (normalizedExpected === "caste" || normalizedExpected.includes("caste") || normalizedExpected.includes("community")) {
-    if (hasAadhaarMarkers && !hasCasteMarkers) {
+    if (!hasCasteMarkers) {
+      if (hasAadhaarMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "aadhaar",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Caste/Community Certificate slot. Please upload your official Community/Caste Certificate (e.g. MeeSeva REV-01 or Tahsildar copy).`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasBankMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "bank_passbook",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Caste Certificate slot. Please upload your Community Certificate.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasMarksheetMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "marksheet",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Academic Marksheet ('${fileName}') into the Caste Certificate slot. Please upload your Community Certificate.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasIncomeMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "income_cert",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Income Certificate ('${fileName}') into the Caste Certificate slot. Please upload your official Community/Caste Certificate.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Caste/Community Certificate slot. Please upload your official Community/Caste Certificate (e.g. MeeSeva REV-01 or Tahsildar copy).`,
-        ],
-        extractionSource: "INTELLIGENT_OCR_PARSER",
-      };
-    }
-    if (hasBankMarkers && !hasCasteMarkers) {
-      return {
-        isValidDocument: false,
-        detectedDocType: "bank_passbook",
-        confidenceScore: 30,
-        securityMarkersDetected: [],
-        validationWarnings: [
-          `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Caste Certificate slot. Please upload your Community Certificate.`,
+          `❌ Missing Community Proof: The uploaded file '${fileName}' does not contain recognized Revenue Department community identifiers, MeeSeva REV-01 codes, or Tahsildar digital stamps. Please upload your official Community/Caste Certificate.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -803,7 +988,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "caste_cert",
-      confidenceScore: hasCasteMarkers ? 93 : 88,
+      confidenceScore: 94,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
       issuingAuthority: "Revenue Department (Tahsildar / Sub-Collector)",
@@ -818,14 +1003,38 @@ function parseDocumentIntelligently(
 
   // SLOT: INCOME CERTIFICATE
   if (normalizedExpected === "income" || normalizedExpected.includes("income")) {
-    if (hasAadhaarMarkers && !hasIncomeMarkers) {
+    if (!hasIncomeMarkers) {
+      if (hasAadhaarMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "aadhaar",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Income Certificate slot. Please upload your Annual Family Income Certificate.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
+      if (hasBankMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "bank_passbook",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded a Bank Passbook ('${fileName}') into the Income Certificate slot. Please upload your Annual Family Income Certificate.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Income Certificate slot. Please upload your Annual Family Income Certificate.`,
+          `❌ Missing Income Assessment: The uploaded file '${fileName}' does not contain official Tahsildar / Mandal Revenue Officer annual family income assessment records.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -834,7 +1043,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "income_cert",
-      confidenceScore: hasIncomeMarkers ? 93 : 88,
+      confidenceScore: 94,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
       issuingAuthority: "Mandal Revenue Officer / Tahsildar",
@@ -849,14 +1058,26 @@ function parseDocumentIntelligently(
 
   // SLOT: BONAFIDE / ALLOTMENT / STUDY CERTIFICATE
   if (normalizedExpected === "bonafide" || normalizedExpected.includes("bonafide") || normalizedExpected.includes("study") || normalizedExpected.includes("allotment")) {
-    if (hasAadhaarMarkers && !hasBonafideMarkers) {
+    if (!hasBonafideMarkers) {
+      if (hasAadhaarMarkers) {
+        return {
+          isValidDocument: false,
+          detectedDocType: "aadhaar",
+          confidenceScore: 20,
+          securityMarkersDetected: [],
+          validationWarnings: [
+            `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Institutional Bonafide/Allotment Order slot. Please upload your official college Bonafide Certificate or Allotment Order.`,
+          ],
+          extractionSource: "INTELLIGENT_OCR_PARSER",
+        };
+      }
       return {
         isValidDocument: false,
-        detectedDocType: "aadhaar",
-        confidenceScore: 30,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
         securityMarkersDetected: [],
         validationWarnings: [
-          `❌ Document Mismatch: You uploaded an Aadhaar Card ('${fileName}') into the Institutional Bonafide/Allotment Order slot. Please upload your official college Bonafide Certificate or Allotment Order.`,
+          `❌ Missing Institutional Proof: The uploaded file '${fileName}' does not contain recognized College / School Bonafide, Study Certificate, or Admission Allotment markers.`,
         ],
         extractionSource: "INTELLIGENT_OCR_PARSER",
       };
@@ -865,7 +1086,7 @@ function parseDocumentIntelligently(
     return {
       isValidDocument: true,
       detectedDocType: "bonafide_cert",
-      confidenceScore: hasBonafideMarkers ? 92 : 88,
+      confidenceScore: 93,
       extractedName: extractedCitizenName,
       extractedIdNumber: extractIdNumberFromText(extractedReadableText, "cert") || undefined,
       issuingAuthority: "Recognized Educational Institution / Convenor Counseling Desk",
@@ -878,15 +1099,97 @@ function parseDocumentIntelligently(
     };
   }
 
+  // SLOT: RATION CARD
+  if (normalizedExpected === "ration_card" || normalizedExpected.includes("ration") || normalizedExpected.includes("rice")) {
+    if (!hasRationMarkers) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Invalid Ration Card: The uploaded file '${fileName}' does not contain Civil Supplies Ration Card or Rice Card identifiers.`,
+        ],
+        extractionSource: "INTELLIGENT_OCR_PARSER",
+      };
+    }
+
+    return {
+      isValidDocument: true,
+      detectedDocType: "ration_card",
+      confidenceScore: 94,
+      extractedName: extractedCitizenName,
+      issuingAuthority: "Civil Supplies & Consumer Affairs Department",
+      securityMarkersDetected: ["State Food Security Emblem", "Digital Ration Database QR"],
+      validationWarnings: [],
+      extractionSource: "INTELLIGENT_OCR_PARSER",
+    };
+  }
+
+  // SLOT: DISABILITY CERTIFICATE
+  if (normalizedExpected === "disability" || normalizedExpected.includes("disability") || normalizedExpected.includes("udid") || normalizedExpected.includes("sadarem")) {
+    if (!hasDisabilityMarkers) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Invalid Disability Certificate: The uploaded file '${fileName}' does not contain official SADAREM or UDID National Disability Certificate markers.`,
+        ],
+        extractionSource: "INTELLIGENT_OCR_PARSER",
+      };
+    }
+
+    return {
+      isValidDocument: true,
+      detectedDocType: "disability_cert",
+      confidenceScore: 94,
+      extractedName: extractedCitizenName,
+      issuingAuthority: "District Medical Board / Department of Empowerment of PwDs",
+      securityMarkersDetected: ["Medical Superintendent Seal", "UDID Central Barcode"],
+      validationWarnings: [],
+      extractionSource: "INTELLIGENT_OCR_PARSER",
+    };
+  }
+
+  // SLOT: LAND RECORD / PATTA
+  if (normalizedExpected === "land_record" || normalizedExpected.includes("land") || normalizedExpected.includes("patta")) {
+    if (!hasLandMarkers) {
+      return {
+        isValidDocument: false,
+        detectedDocType: "unknown",
+        confidenceScore: 0,
+        securityMarkersDetected: [],
+        validationWarnings: [
+          `❌ Invalid Land Record: The uploaded file '${fileName}' does not contain Pattadar Passbook, RoFR, or land revenue registry records.`,
+        ],
+        extractionSource: "INTELLIGENT_OCR_PARSER",
+      };
+    }
+
+    return {
+      isValidDocument: true,
+      detectedDocType: "land_record",
+      confidenceScore: 94,
+      extractedName: extractedCitizenName,
+      issuingAuthority: "Revenue Divisional Office / Tahsildar Land Records Desk",
+      securityMarkersDetected: ["State Land Records Digital Seal", "Khata / Survey Number Entry"],
+      validationWarnings: [],
+      extractionSource: "INTELLIGENT_OCR_PARSER",
+    };
+  }
+
   // DEFAULT / OTHER STATUTORY SLOTS:
+  // If no statutory government markers were detected for the requested slot, reject the file
   return {
-    isValidDocument: true,
-    detectedDocType: "statutory_cert",
-    confidenceScore: 88,
-    extractedName: extractedCitizenName,
-    issuingAuthority: "Competent Statutory Authority",
-    securityMarkersDetected: ["Official Document Header", "Digital Government Record"],
-    validationWarnings: [],
+    isValidDocument: false,
+    detectedDocType: "unknown",
+    confidenceScore: 0,
+    securityMarkersDetected: [],
+    validationWarnings: [
+      `❌ Unrecognized Document: The uploaded file '${fileName}' does not appear to contain recognized Indian Government statutory seals, barcodes, or official authority headers for ${expectedTitle}. Please upload an authentic official copy.`,
+    ],
     extractionSource: "INTELLIGENT_OCR_PARSER",
   };
 }
@@ -914,53 +1217,40 @@ function parsePdfTextStream(buf: Buffer): string {
 }
 
 function extractNameFromFilename(fileName: string): string | null {
-  const nameOnly = fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
-  const tokens = nameOnly.split(" ").filter(
-    (t) =>
-      ![
-        "aadhaar",
-        "aadhar",
-        "card",
-        "doc",
-        "memo",
-        "marksheet",
-        "passbook",
-        "bank",
-        "pdf",
-        "jpg",
-        "png",
-        "img",
-        "photo",
-        "scan",
-        "copy",
-        "uidai",
-        "ssc",
-        "inter",
-        "class",
-        "10th",
-        "12th",
-        "caste",
-        "income",
-        "cert",
-        "certificate",
-        "ration",
-        "bonafide",
-        "study",
-        "apgb",
-        "sbi",
-        "bie",
-        "image",
-        "file",
-        "test",
-        "scan1",
-        "capture",
-      ].includes(t.toLowerCase())
-  );
+  const nameOnly = fileName.replace(/\.[^/.]+$/, "").replace(/[_\-.()+]/g, " ");
+  const blacklistedTokens = new Set([
+    "aadhaar", "aadhar", "card", "doc", "document", "documents", "memo", "marksheet", "mark", "marks",
+    "passbook", "bank", "pdf", "jpg", "jpeg", "png", "webp", "img", "photo", "scan", "scan1", "scan2",
+    "copy", "uidai", "ssc", "inter", "class", "10th", "12th", "caste", "income", "cert", "certificate",
+    "certificates", "certified", "certification", "practitioner", "ration", "bonafide", "study", "apgb",
+    "sbi", "bie", "image", "file", "test", "demo", "capture", "screenshot", "form", "application", "dossier",
+    "front", "back", "page", "upload", "cloudflare", "quota", "ssl", "tls", "api", "key", "token", "server",
+    "linux", "windows", "cloud", "aws", "amazon", "azure", "gcp", "google", "docker", "kubernetes", "k8s",
+    "terraform", "devops", "architect", "developer", "associate", "specialist", "professional", "foundation",
+    "fundamentals", "exam", "score", "scorecard", "report", "badge", "credential", "coursera", "udemy", "edx",
+    "nptel", "swayam", "cisco", "oracle", "comptia", "redhat", "hackerrank", "leetcode", "github", "gitlab",
+    "software", "engineer", "web", "services", "attendance", "completion", "participation", "achievement",
+    "license", "licence", "driving", "transport", "vehicle", "rc", "billing", "receipt", "invoice", "statement",
+    "order", "status", "tax", "gst", "gstin", "challan", "export", "download", "final", "temp", "new", "untitled",
+    "v1", "v2", "v3", "user", "admin", "client", "sample", "data", "summary", "official", "gov", "nic"
+  ]);
 
-  if (tokens.length >= 2) {
-    return tokens.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
-  } else if (tokens.length === 1 && tokens[0].length >= 3) {
-    return tokens[0].charAt(0).toUpperCase() + tokens[0].slice(1).toLowerCase();
+  const rawTokens = nameOnly.split(/\s+/).map((t) => t.toLowerCase().trim()).filter(Boolean);
+
+  // If ANY token in the filename belongs to the blacklist (e.g. "aws", "certified", "practitioner", "marksheet"),
+  // this is a document / course title, NOT a citizen's personal name! Return null immediately.
+  for (const t of rawTokens) {
+    if (blacklistedTokens.has(t)) {
+      return null;
+    }
+  }
+
+  const cleanTokens = rawTokens.filter((t) => t.length >= 2 && /^[a-zA-Z]+$/.test(t));
+
+  // Only return if between 2 and 4 plausible human name words
+  if (cleanTokens.length >= 2 && cleanTokens.length <= 4) {
+    return cleanTokens.map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
   }
   return null;
 }
+

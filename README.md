@@ -129,9 +129,10 @@ flowchart TD
 | **Frontend Framework** | Next.js 16.3.5 (App Router, Turbopack) | High-performance SSR and modern React Server Components |
 | **Styling & Design** | Tailwind CSS v4 + Lucide React | Clean, high-contrast, accessible civic design system |
 | **Statutory Policy Engine** | AWS Cedar WASM (`@cedar-policy/cedar-wasm` v4.13.0) | Deterministic, sub-millisecond legal policy evaluation |
-| **Generative AI & Vision** | Amazon Bedrock (`claude-3-5-sonnet-20241022-v2:0`) | Multimodal document audit, OCR extraction & vernacular copilot |
+| **Primary Generative AI & Vision** | Amazon Bedrock (`claude-3-5-sonnet-20241022-v2:0` & `amazon.nova-lite-v1:0`) | Primary enterprise multimodal document audit, OCR extraction & vernacular copilot |
+| **Starter & Resilient Fallback LLMs** | Groq Cloud (Llama 3.3 70B) & Google Gemini 2.0 Flash | Prototyping starters & automatic failover during Bedrock model access request checks |
 | **Database** | Amazon DynamoDB | Serverless single-table storage for scheme gazettes and dossiers |
-| **Object Storage** | Amazon S3 (`@aws-sdk/client-s3`) | Secure pre-signed direct document upload and archival |
+| **Object Storage** | Amazon S3 (`@aws-sdk/client-s3` & `@aws-sdk/s3-request-presigner`) | Secure pre-signed direct document upload and zero-trust archival |
 | **Geo-Location API** | Indian Postal Pincode API (`api.postalpincode.in`) | Dynamic resolution of taluks, sub-post offices, and districts |
 | **Voice Interface** | Web Speech Recognition & Web Speech Synthesis API | Native vernacular hands-free interaction in English & Hindi |
 | **Cloud Hosting** | AWS Amplify Hosting | Continuous integration, global CDN, and edge deployment |

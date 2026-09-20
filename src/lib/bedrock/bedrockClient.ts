@@ -158,7 +158,15 @@ export async function askJanSetuCopilot(
 
   const eligibleResults = effectiveEvalResults.filter((r) => r.decision === "ALLOW");
   const deniedResults = effectiveEvalResults.filter((r) => r.decision === "DENY");
-  const currentTargetId = context?.targetSchemeId || "TN_Pudhumai_Penn";
+  const defaultSchemeForProfile =
+    eligibleResults[0]?.scheme.id ||
+    (effectiveProfile.state === "Andhra Pradesh"
+      ? "AP_Jagananna_Vidya_Deevena"
+      : effectiveProfile.category === "ST"
+      ? "PostMatric_ST"
+      : "TN_Pudhumai_Penn");
+
+  const currentTargetId = context?.targetSchemeId || defaultSchemeForProfile;
   const currentTargetScheme =
     globalSchemeRegistry.getSchemeById(currentTargetId) ||
     SCHEMES_DATABASE.find(
@@ -809,15 +817,113 @@ ${eligibleResults
     }
   }
 
-  // I. DOCUMENTS REQUIRED ("what are the documents required for this particular scheme")
+  // I.1. SPECIFIC MISSING / PENDING CERTIFICATES QUERY ("what certificates do i need still", "what documents are pending", "what is missing")
   else if (
-    queryLower.includes("document") ||
-    queryLower.includes("documnt") ||
-    queryLower.includes("doc") ||
-    queryLower.includes("certificate") ||
-    queryLower.includes("paper") ||
-    queryLower.includes("checklist") ||
-    queryLower.includes("proof") ||
+    (
+      /(certifica?te?s?|certifactes|certficates|cerificates|certi|docum?e?n?t?s?|documnts|doucments|dokuments|docs|proofs)/i.test(queryLower) &&
+      /(still|need|pending|miss|require|remain|left|yet|upload|get|submit)/i.test(queryLower)
+    ) ||
+    /what\s+(do\s+i\s+)?(still\s+)?(need|require|miss|have\s+to\s+get)/i.test(queryLower) ||
+    /what\s+is\s+(pending|missing|left|remaining)/i.test(queryLower) ||
+    /बचे\s*हुए\s*दस्तावेज|कौन\s*से\s*प्रमाण\s*पत्र\s*बाकी/i.test(queryLower)
+  ) {
+    const target = currentTargetScheme;
+    matchedSchemes.push(target.id);
+
+    // Compute held vs pending
+    const heldList = (effectiveProfile.heldDocuments || []).map((d) => d.toLowerCase());
+    
+    // Evaluate mandatory documents
+    const mandatoryList = target.mandatoryDocuments && target.mandatoryDocuments.length > 0
+      ? target.mandatoryDocuments
+      : [
+          "Applicant Aadhaar Card with active mobile link",
+          "Digital Caste / Community Certificate",
+          "Annual Income Certificate (< statutory ceiling)",
+          "Bank Passbook with active NPCI DBT Seeding",
+          "10th Class Marks Memo / Date of Birth Proof",
+          "College Bonafide Certificate & Fee Receipt"
+        ];
+
+    const heldDocs: string[] = [];
+    const missingDocs: { name: string; authority: string; turnaround: string; fee: string }[] = [];
+
+    mandatoryList.forEach((docDesc) => {
+      const lower = docDesc.toLowerCase();
+      const isHeld =
+        (lower.includes("aadhaar") && (heldList.includes("aadhaar_card") || heldList.some((d) => d.includes("aadhaar")))) ||
+        (lower.includes("income") && (heldList.includes("income_certificate") || heldList.some((d) => d.includes("income")))) ||
+        (lower.includes("caste") && (heldList.includes("caste_certificate") || heldList.some((d) => d.includes("caste")))) ||
+        (lower.includes("ration") && (heldList.includes("ration_card") || heldList.some((d) => d.includes("ration")))) ||
+        (lower.includes("marks") && (heldList.includes("marksheet_10th") || heldList.some((d) => d.includes("marks")))) ||
+        (lower.includes("bank") && (heldList.includes("bank_passbook") || heldList.some((d) => d.includes("bank"))));
+
+      if (isHeld) {
+        heldDocs.push(docDesc);
+      } else {
+        // Resolve issuing authority & fee
+        let authority = "Tahsildar / Mandal Revenue Office";
+        let turnaround = "15-20 Days";
+        let fee = "₹25 – ₹30 (CSC / MeeSeva Fee)";
+
+        if (lower.includes("bonafide") || lower.includes("college") || lower.includes("fee receipt")) {
+          authority = "College / School Principal Desk";
+          turnaround = "1-2 Days";
+          fee = "₹0 (Free)";
+        } else if (lower.includes("bank") || lower.includes("npci")) {
+          authority = "Home Bank Branch Manager Desk";
+          turnaround = "2-3 Days";
+          fee = "₹0 (Free under RBI DBT Guidelines)";
+        } else if (lower.includes("marksheet") || lower.includes("birth")) {
+          authority = "State Secondary Education Board / DigiLocker";
+          turnaround = "Instant via DigiLocker";
+          fee = "₹0 (Free)";
+        }
+
+        missingDocs.push({
+          name: docDesc,
+          authority,
+          turnaround,
+          fee,
+        });
+      }
+    });
+
+    if (language === "hi") {
+      answer = `**📋 ${target.title} (${target.shortCode}) के लिए आपके शेष (लंबित) प्रमाण पत्रों की स्थिति:**
+
+*(नागरिक: **${effectiveProfile.name || "अभ्यर्थी"}**, राज्य: **${effectiveProfile.state}**)*
+
+${heldDocs.length > 0 ? `**✅ आपके पास पहले से उपलब्ध / सत्यापित दस्तावेज (${heldDocs.length}):**\n${heldDocs.map((d) => `  • ✔️ ${d}`).join("\n")}\n\n` : ""}**⚠️ आपको अभी भी निम्नलिखित प्रमाण पत्रों की आवश्यकता है (${missingDocs.length}):**
+${missingDocs.map((m, idx) => `**${idx + 1}. ${m.name}**
+  • **जारीकर्ता प्राधिकारी:** ${m.authority}
+  • **समय-सीमा (SLA):** ${m.turnaround}
+  • **सरकारी वैधानिक शुल्क:** ${m.fee}`).join("\n\n")}
+
+💡 **तुरंत कार्रवाई:**
+1. **टैब 3 ("Document Upload & Matcher"):** अपने उपलब्ध दस्तावेजों को अपलोड कर आधार नाम मिलान और NPCI DBT स्थिति जांचें।
+2. **टैब 4 ("Seva Centers"):** अपने जिले (**${effectiveProfile.district || effectiveProfile.state}**) के नजदीकी मीसेवा/ई-सेवा केंद्र खोजें।`;
+    } else {
+      answer = `**📋 Status of Required Certificates for ${target.title} (${target.shortCode}):**
+
+*(Evaluated for: **${effectiveProfile.name || "Citizen"}**, State: **${effectiveProfile.state}**, Scheme: **${target.shortCode}**)*
+
+${heldDocs.length > 0 ? `**✅ Documents Already Held / In Profile (${heldDocs.length}):**\n${heldDocs.map((d) => `  • ✔️ ${d}`).join("\n")}\n\n` : ""}**⚠️ Certificates You Still Need to Acquire / Submit (${missingDocs.length}):**
+${missingDocs.map((m, idx) => `**${idx + 1}. ${m.name}**
+  • **Issuing Authority:** ${m.authority}
+  • **Turnaround SLA:** ${m.turnaround}
+  • **Statutory Government Fee:** ${m.fee}`).join("\n\n")}
+
+🚀 **Next Recommended Actions:**
+1. **Upload in Tab 3 ("Document Upload & Matcher"):** Upload files to verify Aadhaar name matching (prevents automated portal rejection).
+2. **Download NPCI Mandate:** If bank seeding is unverified, download the pre-filled Annexure I mandate form from Tab 3.
+3. **Visit Seva Center in Tab 4:** Find authorized MeeSeva / e-Sevai centers in **${effectiveProfile.district || effectiveProfile.state}** to apply for missing revenue certificates at legal ₹25–₹30 rates.`;
+    }
+  }
+
+  // I.2. GENERAL DOCUMENTS REQUIRED (with Typo-Tolerance)
+  else if (
+    /(certifica?te?s?|certifactes|certficates|cerificates|certi|docum?e?n?t?s?|documnts|doucments|dokuments|docs|proofs|papers|checklist)/i.test(queryLower) ||
     queryLower.includes("दस्तावेज") ||
     queryLower.includes("प्रमाण पत्र")
   ) {
@@ -1035,30 +1141,37 @@ Automated government portals (NSP, e-Kalyan) compare your Aadhaar name against y
     matchedSchemes.push("CSC_Directory", "Citizen_Charter");
   }
 
-  // J. Fallback with Profile Awareness
+  // J. Fallback with Selected Scheme & Profile Awareness
   else {
     answer =
       language === "hi"
-        ? `नमस्ते **${effectiveProfile.name || "विद्यार्थी"}**! मैं आपके प्रश्न में पूरी तरह मदद कर सकता हूँ।
+        ? `नमस्ते **${effectiveProfile.name || "नागरिक"}**! 👋 मैं आपका **जनसेतु एआई नागरिक सहायक** हूँ।
 
-वर्तमान में आपकी प्रोफ़ाइल के अनुसार आप **${eligibleResults.length} छात्रवृत्ति योजनाओं** के लिए योग्य हैं।
+🎯 **वर्तमान चयनित योजना:** **${currentTargetScheme.title}** (\`${currentTargetScheme.shortCode}\`)
+• **संबद्ध मंत्रालय:** ${currentTargetScheme.ministry}
+• **वित्तीय लाभ:** **${currentTargetScheme.benefitAmount}**
+• **पात्रता स्थिति:** ${isCurrentSchemeEligible ? "✅ आप इस योजना के लिए 100% पात्र हैं" : `⚠️ ${currentSchemeEval?.failedReasons.join("; ") || "शर्तें पूरी नहीं हैं"}`}
 
-कृपया मुझे बताएं कि आप क्या जानना चाहते हैं:
-1. **"मैं किन योजनाओं के लिए पात्र हूँ?"**
-2. **"मेरे लिए कौन सी योजनाएं अपात्र हैं?"**
-3. **"इस योजना के लिए क्या आवश्यकताएं हैं?"**
-4. **"कौन से दस्तावेज जमा करने हैं?"**
-5. **"आवेदन कैसे शुरू करें?"**`
-        : `Hello **${effectiveProfile.name || "Citizen"}**! I am here to guide you.
+मैं **${currentTargetScheme.shortCode}** पर केंद्रित हूँ। आप मुझसे सीधे पूछ सकते हैं:
+1. **"मुझे इस योजना के लिए अभी कौन से प्रमाण पत्र चाहिए?"**
+2. **"क्या मैं इस योजना के लिए पात्र हूँ?"**
+3. **"इस योजना हेतु कौन-कौन से दस्तावेज आवश्यक हैं?"**
+4. **"5-चरणीय सत्यापन रोडमैप और समय-सीमा क्या है?"**
+5. **"आवेदन कैसे करें (How to apply)?"**`
+        : `Hello **${effectiveProfile.name || "Citizen"}**! 👋 I am your **JanSetu AI Civic Copilot**.
 
-Based on your active profile (${effectiveProfile.category}, ${effectiveProfile.state}, ₹${effectiveProfile.annualFamilyIncome.toLocaleString("en-IN")}), you are eligible for **${eligibleResults.length} government schemes**.
+🎯 **Active Scheme Auto-Detected:** **${currentTargetScheme.title}** (\`${currentTargetScheme.shortCode}\`)
+• **Administering Authority:** ${currentTargetScheme.ministry}
+• **Entitlement Benefit:** **${currentTargetScheme.benefitAmount}**
+• **Cedar Policy Status:** ${isCurrentSchemeEligible ? "✅ **100% ELIGIBLE** for your active profile" : `⚠️ **Ineligible:** ${currentSchemeEval?.failedReasons.join("; ") || "Criteria mismatch"}`}
 
-You can ask me:
-1. **"What are the eligible schemes I am eligible for?"**
-2. **"What are the non-eligible schemes for me?"**
-3. **"What are the requirements for this scheme?"**
-4. **"What are the documents required for this particular scheme?"**
-5. **"How can I do it?"**`;
+I have automatically locked my context onto **${currentTargetScheme.shortCode}**. You can ask me directly:
+1. **"What certificates do I still need for this scheme?"**
+2. **"What are the documents required for ${currentTargetScheme.shortCode}?"**
+3. **"Am I eligible for this scheme?"**
+4. **"What are the 5 verification stages & timeline?"**
+5. **"How do I apply step-by-step?"**
+6. **"Where is the nearest Seva Center to submit documents?"**`;
   }
 
   return {

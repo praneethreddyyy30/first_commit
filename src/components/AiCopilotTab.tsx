@@ -726,6 +726,7 @@ Ask me anything! Here are popular queries:
 
   const quickPrompts = activeScheme
     ? [
+        "What certificates do I still need for this scheme?",
         `What are the documents required for ${activeScheme.shortCode}?`,
         `Am I eligible for ${activeScheme.shortCode}?`,
         `What are the 5 verification stages & timeline for ${activeScheme.shortCode}?`,

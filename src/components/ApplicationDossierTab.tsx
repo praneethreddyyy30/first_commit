@@ -14,22 +14,29 @@ import {
   Clock,
   ArrowRight
 } from "lucide-react";
+import { SCHEMES_DATABASE } from "@/data/schemes";
+import { getSchemeRoadmap } from "@/data/schemeRoadmaps";
+import { InteractiveApplicationTracker } from "@/components/InteractiveApplicationTracker";
 
 interface ApplicationDossierTabProps {
   profile: UserProfile;
   evaluationResults: CedarEvaluationResult[];
   auditResult: DocumentAuditResult;
+  targetSchemeId?: string;
 }
 
 export const ApplicationDossierTab: React.FC<ApplicationDossierTabProps> = ({
   profile,
   evaluationResults,
   auditResult,
+  targetSchemeId,
 }) => {
-  const [appTrackerId, setAppTrackerId] = useState<string>("NSP2026ST89201");
-  const [isTracking, setIsTracking] = useState<boolean>(false);
+  const selectedScheme = targetSchemeId
+    ? SCHEMES_DATABASE.find((s) => s.id === targetSchemeId)
+    : evaluationResults.find((r) => r.decision === "ALLOW")?.scheme;
 
-  const topEligible = evaluationResults.find((r) => r.decision === "ALLOW")?.scheme;
+  const topEligible = selectedScheme || evaluationResults.find((r) => r.decision === "ALLOW")?.scheme;
+  const roadmapData = topEligible ? getSchemeRoadmap(topEligible.id) : undefined;
 
   const handlePrint = () => {
     window.print();
@@ -236,72 +243,14 @@ export const ApplicationDossierTab: React.FC<ApplicationDossierTabProps> = ({
         </div>
       </div>
 
-      {/* PART 2: LIVE APPLICATION STATUS TRACKER */}
-      <div className="luxury-card rounded-2xl p-6 sm:p-8 space-y-4">
-        <h4 className="text-base sm:text-lg font-bold text-[#0B1B4F] font-serif">
-          Live Application Status Tracker
-        </h4>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Track the real-time progress of your submitted application across government tiers.
-        </p>
-
-        <div className="mt-4 flex flex-wrap gap-2.5">
-          <div className="relative flex-1 min-w-[260px]">
-            <Search className="size-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={appTrackerId}
-              onChange={(e) => setAppTrackerId(e.target.value)}
-              placeholder="Enter Application ID (e.g. NSP2026ST89201)"
-              className="w-full rounded-xl border border-[#DFC8A5] bg-white pl-9 pr-3 py-2.5 text-xs font-mono text-slate-800 focus:border-[#DFB738] focus:outline-hidden"
-            />
-          </div>
-          <button
-            onClick={() => setIsTracking(true)}
-            className="flex items-center gap-2 rounded-xl bg-[#0B1B4F] px-5 py-2.5 text-xs font-bold text-[#F5E29F] hover:bg-[#152864] transition-colors cursor-pointer border border-[#DFB738]/40 shadow-sm"
-          >
-            <span>Track Application</span>
-            <ArrowRight className="size-3.5" />
-          </button>
-        </div>
-
-        {/* Visual Pipeline */}
-        <div className="mt-6 border-t border-[#EDE6DD] pt-6">
-          <div className="grid gap-3 sm:grid-cols-5">
-            {[
-              { label: "Submitted Online", status: "COMPLETED", date: "Sept 12, 2026" },
-              { label: "College (INO) Verified", status: "COMPLETED", date: "Sept 15, 2026" },
-              { label: "District (DNO) Verification", status: "IN_PROGRESS", date: "Pending (Within 8 days)" },
-              { label: "Ministry Sanction", status: "PENDING", date: "Awaiting DNO" },
-              { label: "PFMS DBT Credit", status: "PENDING", date: "Direct to Bank" },
-            ].map((step, idx) => (
-              <div
-                key={idx}
-                className={`rounded-xl border p-3.5 text-xs transition-all ${
-                  step.status === "COMPLETED"
-                    ? "border-emerald-200 bg-emerald-50/60 text-emerald-950"
-                    : step.status === "IN_PROGRESS"
-                    ? "border-[#DFB738] bg-amber-50 text-amber-950 font-bold shadow-xs ring-1 ring-[#DFB738]/50"
-                    : "border-[#EDE6DD] bg-[#FAF7F2] text-slate-400"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-[10px]">Step 0{idx + 1}</span>
-                  {step.status === "COMPLETED" ? (
-                    <CheckCircle2 className="size-3.5 text-emerald-600" />
-                  ) : step.status === "IN_PROGRESS" ? (
-                    <Clock className="size-3.5 text-amber-700 animate-pulse" />
-                  ) : (
-                    <div className="size-2 rounded-full bg-slate-300" />
-                  )}
-                </div>
-                <div className="mt-2 font-bold text-xs font-serif">{step.label}</div>
-                <div className="mt-1 text-[10px] opacity-80">{step.date}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      {/* PART 2: LIVE INTERACTIVE APPLICATION STATUS TRACKER & CHECKLIST */}
+      <InteractiveApplicationTracker
+        schemeId={topEligible?.id || "NSP_SCHOLARSHIP"}
+        schemeTitle={topEligible?.title || "Citizen Scholarship Application"}
+        shortCode={topEligible?.shortCode || "NSP"}
+        stages={roadmapData?.stages}
+        defaultAppId={`NSP2026ST${Math.floor(10000 + Math.random() * 90000)}`}
+      />
     </div>
   );
 };

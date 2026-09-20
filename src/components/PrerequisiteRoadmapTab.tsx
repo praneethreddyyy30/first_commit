@@ -36,6 +36,7 @@ import {
   getMergedRoadmap,
   SchemeRoadmap
 } from "@/data/schemeRoadmaps";
+import { InteractiveApplicationTracker } from "@/components/InteractiveApplicationTracker";
 
 interface PrerequisiteRoadmapTabProps {
   initialSchemeId?: string;
@@ -653,7 +654,9 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
 
                     {currentRoadmap.tier2StatutoryCertificates.length === 0 ? (
                       <p className="text-xs text-slate-500 italic">
-                        No special caste or community certificates mandated for this general scheme.
+                        {currentRoadmap.type === "certificate"
+                          ? "Statutory revenue service: Verified directly by Tahsildar / Revenue Inspector field inquiry."
+                          : "No special caste or community certificates mandated for this general scheme."}
                       </p>
                     ) : (
                       <ul className="space-y-2.5">
@@ -721,6 +724,8 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                     <h5 className="text-xs font-bold text-[#0B1B4F] mb-2 font-serif">
                       {currentRoadmap.type === "healthcare"
                         ? "Clinical Requisitions & Pre-Auth"
+                        : currentRoadmap.type === "certificate"
+                        ? "Revenue Desk & Inquiry Clearance"
                         : "Academic & Banking Clearance"}
                     </h5>
                     <ul className="space-y-2.5">
@@ -924,6 +929,19 @@ export const PrerequisiteRoadmapTab: React.FC<PrerequisiteRoadmapTabProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* PART D: LIVE INTERACTIVE APPLICATION STATUS TRACKER & MILESTONE CHECKLIST */}
+            <InteractiveApplicationTracker
+              schemeId={currentRoadmap.schemeId}
+              schemeTitle={currentRoadmap.schemeTitle}
+              shortCode={currentRoadmap.shortCode}
+              stages={currentRoadmap.stages}
+              checklistItems={currentRoadmap.rejectionChecklist.map((item, idx) => ({
+                id: `check_${currentRoadmap.schemeId}_${idx}`,
+                label: item.check,
+                isMandatory: true,
+              }))}
+            />
           </div>
         </div>
       )}
